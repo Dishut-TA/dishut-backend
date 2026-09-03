@@ -1,0 +1,1710 @@
+{
+  "info": {
+    "name": "SIGAP JABAR - Full API Test (Modul 1 & Modul 2)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. KabKota",
+      "item": [
+        {
+          "name": "1. Create KabKota",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"3201\",\n    \"name\": \"Kabupaten Bogor\",\n    \"latitude\": -6.59444,\n    \"longitude\": 106.78917\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kabkotas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kabkotas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All KabKota",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kabkotas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kabkotas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update KabKota",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"3201\",\n    \"name\": \"Kabupaten Bogor\",\n    \"latitude\": -6.59444,\n    \"longitude\": 106.78917\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kabkotas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kabkotas",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete KabKota",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kabkotas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kabkotas",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Kecamatan",
+      "item": [
+        {
+          "name": "1. Create Kecamatan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"city_id\": 1,\n    \"code\": \"320101\",\n    \"name\": \"Cibinong\",\n    \"latitude\": -6.48278,\n    \"longitude\": 106.84889\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kecamatans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kecamatans"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Kecamatan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kecamatans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kecamatans"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Kecamatan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"city_id\": 1,\n    \"code\": \"320101\",\n    \"name\": \"Cibinong\",\n    \"latitude\": -6.48278,\n    \"longitude\": 106.84889\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kecamatans/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kecamatans",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Kecamatan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kecamatans/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kecamatans",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Desa",
+      "item": [
+        {
+          "name": "1. Create Desa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"district_id\": 1,\n    \"code\": \"32010101\",\n    \"name\": \"Ciriung\",\n    \"latitude\": -6.48278,\n    \"longitude\": 106.84889\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/desas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "desas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Desa",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/desas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "desas"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Desa",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"district_id\": 1,\n    \"code\": \"32010101\",\n    \"name\": \"Ciriung\",\n    \"latitude\": -6.48278,\n    \"longitude\": 106.84889\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/desas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "desas",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Desa",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/desas/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "desas",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Lahan",
+      "item": [
+        {
+          "name": "1. Create Lahan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"village_id\": 1,\n    \"code\": \"LHN-001\",\n    \"name\": \"Lahan Kritis Ciriung Area 1\",\n    \"area\": 1500.5,\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/lahans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lahans"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Lahan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/lahans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lahans"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Lahan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"village_id\": 1,\n    \"code\": \"LHN-001\",\n    \"name\": \"Lahan Kritis Ciriung Area 1\",\n    \"area\": 1500.5,\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/lahans/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lahans",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Lahan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/lahans/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lahans",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Bibit",
+      "item": [
+        {
+          "name": "1. Create Bibit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"S-MAH-001\",\n    \"name\": \"Mahoni\",\n    \"type\": \"Kayu\",\n    \"category\": \"Kehutanan\",\n    \"certification_status\": \"Bersertifikat\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bibits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bibits"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Bibit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bibits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bibits"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Bibit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"S-MAH-001\",\n    \"name\": \"Mahoni\",\n    \"type\": \"Kayu\",\n    \"category\": \"Kehutanan\",\n    \"certification_status\": \"Bersertifikat\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bibits/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bibits",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Bibit",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bibits/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bibits",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Jenis Intervensi",
+      "item": [
+        {
+          "name": "1. Create Jenis Intervensi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"INT-01\",\n    \"name\": \"Reboisasi Pola Agroforestri\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/jenis-intervensis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jenis-intervensis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Jenis Intervensi",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jenis-intervensis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jenis-intervensis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Jenis Intervensi",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"INT-01\",\n    \"name\": \"Reboisasi Pola Agroforestri\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/jenis-intervensis/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jenis-intervensis",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Jenis Intervensi",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jenis-intervensis/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jenis-intervensis",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Rekomendasi Intervensi",
+      "item": [
+        {
+          "name": "1. Create Rekomendasi Intervensi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"intervention_type_id\": 1,\n    \"name\": \"Penanaman Mahoni Jarak 3x3\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rekomendasi-intervensis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rekomendasi-intervensis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Rekomendasi Intervensi",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rekomendasi-intervensis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rekomendasi-intervensis"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Rekomendasi Intervensi",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"intervention_type_id\": 1,\n    \"name\": \"Penanaman Mahoni Jarak 3x3\",\n    \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rekomendasi-intervensis/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rekomendasi-intervensis",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Rekomendasi Intervensi",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rekomendasi-intervensis/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rekomendasi-intervensis",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. KTH",
+      "item": [
+        {
+          "name": "1. Create KTH",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"KTH Tani Subur\",\n    \"coordinator\": \"Bapak Anton\",\n    \"member_count\": 40,\n    \"cdk\": \"CDK Wilayah Bogor\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kths",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kths"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All KTH",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kths",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kths"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update KTH",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"KTH Tani Subur\",\n    \"coordinator\": \"Bapak Anton\",\n    \"member_count\": 40,\n    \"cdk\": \"CDK Wilayah Bogor\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kths/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kths",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete KTH",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kths/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kths",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Donor",
+      "item": [
+        {
+          "name": "1. Create Donor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": null,\n    \"donor_name\": \"PT. CSR Hebat\",\n    \"address\": \"Gedung Cyber, Jakarta\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donors"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Donor",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donors"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Donor",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": null,\n    \"donor_name\": \"PT. CSR Hebat\",\n    \"address\": \"Gedung Cyber, Jakarta\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donors/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donors",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Donor",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donors/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donors",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Seed Specification",
+      "item": [
+        {
+          "name": "1. Create Seed Specification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"seed_id\": 1,\n    \"min_height\": 30,\n    \"max_height\": 60,\n    \"stock\": 10000,\n    \"price\": 12500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/seed-specifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seed-specifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Seed Specification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/seed-specifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seed-specifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Seed Specification",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"seed_id\": 1,\n    \"min_height\": 30,\n    \"max_height\": 60,\n    \"stock\": 10000,\n    \"price\": 12500\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/seed-specifications/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seed-specifications",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Seed Specification",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/seed-specifications/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "seed-specifications",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Donation Program",
+      "item": [
+        {
+          "name": "1. Create Donation Program",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"analysis_result_id\": null,\n    \"kth_id\": 1,\n    \"seed_specification_id\": 1,\n    \"name\": \"Program Hijaukan Bogor\",\n    \"location\": \"Lahan Kritis Ciriung Area 1\",\n    \"total_seeds_collected\": 0,\n    \"total_seeds_realized\": 0,\n    \"status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donation-programs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donation-programs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Donation Program",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donation-programs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donation-programs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Donation Program",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"analysis_result_id\": null,\n    \"kth_id\": 1,\n    \"seed_specification_id\": 1,\n    \"name\": \"Program Hijaukan Bogor\",\n    \"location\": \"Lahan Kritis Ciriung Area 1\",\n    \"total_seeds_collected\": 0,\n    \"total_seeds_realized\": 0,\n    \"status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donation-programs/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donation-programs",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Donation Program",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donation-programs/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donation-programs",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Donation",
+      "item": [
+        {
+          "name": "1. Create Donation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"donor_id\": 1,\n    \"seed_id\": 1,\n    \"seed_quantity\": 200,\n    \"seed_status\": \"Pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Donation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Donation",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"donor_id\": 1,\n    \"seed_id\": 1,\n    \"seed_quantity\": 200,\n    \"seed_status\": \"Pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/donations/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donations",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Donation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/donations/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "donations",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Transaction",
+      "item": [
+        {
+          "name": "1. Create Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_id\": 1,\n    \"donor_id\": 1,\n    \"amount\": 2500000,\n    \"transaction_date\": \"2026-07-17 15:30:00\",\n    \"payment_method\": \"Mandiri VA\",\n    \"status\": \"Success\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Transaction",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Transaction",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_id\": 1,\n    \"donor_id\": 1,\n    \"amount\": 2500000,\n    \"transaction_date\": \"2026-07-17 15:30:00\",\n    \"payment_method\": \"Mandiri VA\",\n    \"status\": \"Success\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Transaction",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Planted Seed",
+      "item": [
+        {
+          "name": "1. Create Planted Seed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"seed_id\": 1,\n    \"planted_quantity\": 100,\n    \"proof_path\": \"uploads/planting/bukti_tanam_1.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/planted-seeds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "planted-seeds"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Planted Seed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/planted-seeds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "planted-seeds"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Planted Seed",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"seed_id\": 1,\n    \"planted_quantity\": 100,\n    \"proof_path\": \"uploads/planting/bukti_tanam_1.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/planted-seeds/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "planted-seeds",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Planted Seed",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/planted-seeds/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "planted-seeds",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. Report",
+      "item": [
+        {
+          "name": "1. Create Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"user_id\": 1,\n    \"start_date\": \"2026-07-01\",\n    \"end_date\": \"2026-07-31\",\n    \"status\": \"Success\",\n    \"report_file_path\": \"uploads/reports/laporan_penanaman.pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Report",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"donation_program_id\": 1,\n    \"user_id\": 1,\n    \"start_date\": \"2026-07-01\",\n    \"end_date\": \"2026-07-31\",\n    \"status\": \"Success\",\n    \"report_file_path\": \"uploads/reports/laporan_penanaman.pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Delete Report",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://master.service.unikom.my.id/api",
+      "type": "string"
+    }
+  ]
+}

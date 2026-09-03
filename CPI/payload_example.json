@@ -1,0 +1,11 @@
+{
+  "project_id": "test_001",
+  "dem": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/DEM.tif",
+  "landcover": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/tutupan_lahan.tif",
+  "rainfall": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/rainfall_score.tif",
+  "soil": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/jenis_tanah.zip",
+  "das": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/DAS.zip",
+  "admin": "D:/Skripsi/Teknis/cpi_ahp_engine_python/data/batas wilayah.zip",
+  "target_resolution": 1000,
+  "save_intermediate_rasters": false
+}

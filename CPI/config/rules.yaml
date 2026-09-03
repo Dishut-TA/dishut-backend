@@ -1,0 +1,158 @@
+# ==========================================================
+# CPI-AHP Lahan Kritis Rules Config
+# ==========================================================
+# Arah skor engine ini:
+#   1 = aman / tidak kritis
+#   5 = berisiko / sangat kritis
+# Normalisasi default mengubah skor 1..5 menjadi 0..100.
+# PENTING: angka rule di bawah adalah template. Ganti sesuai dokumen PERMEN LHK /
+# pedoman teknis yang dipakai di penelitian kamu.
+
+project:
+  name: "CPI AHP Lahan Kritis"
+  # Jawa Barat umumnya aman diproses ke UTM 48S untuk area meter.
+  # Kalau area beda, ganti sesuai zona UTM/proyeksi lokal.
+  target_crs: "EPSG:32748"
+  target_resolution: 30
+  nodata: -9999
+  fallback_vector_crs: "EPSG:4326"
+  output_simplify_tolerance: 20
+
+# Urutan indikator harus sama dengan pairwise_matrix.
+# Engine akan menghitung bobot AHP, lalu memakai bobot itu ke CPI.
+ahp:
+  indicators:
+    - landcover
+    - rainfall
+    - soil
+    - slope
+  # Template judgement. Ganti dengan hasil judgement ahli / tabel penelitian kamu.
+  # Baris/kolom: landcover, rainfall, soil, slope
+  pairwise_matrix:
+    - [1,   2,   3,   2]
+    - [0.5, 1,   2,   1]
+    - [0.3333333333, 0.5, 1, 0.5]
+    - [0.5, 1,   2,   1]
+  consistency_threshold: 0.10
+  fail_if_inconsistent: false
+
+classification:
+  # Skor CPI akhir 0..100; semakin tinggi = semakin kritis.
+  thresholds:
+    tidak_kritis:
+      min: 0
+      max: 33.333333
+      label: "Tidak Kritis"
+      color: "#2E7D32"
+      class_id: 1
+    kritis:
+      min: 33.333333
+      max: 66.666667
+      label: "Kritis"
+      color: "#FB8C00"
+      class_id: 2
+    sangat_kritis:
+      min: 66.666667
+      max: 100.000001
+      label: "Sangat Kritis"
+      color: "#C62828"
+      class_id: 3
+
+rules:
+  landcover:
+    default_score: 3
+    field_candidates: ["landcover", "LC", "kelas", "KELAS", "penutup", "PENUTUP", "PL", "nama"]
+    raster_values:
+      # Contoh kode. Sesuaikan dengan kode raster tutupan lahan kamu.
+      1: {label: "Hutan", score: 1}
+      2: {label: "Perkebunan/Sawah", score: 2}
+      3: {label: "Semak/Belukar", score: 3}
+      4: {label: "Pertanian Lahan Kering/Tegalan", score: 4}
+      5: {label: "Lahan Terbuka/Permukiman/Tambang", score: 5}
+    classes:
+      "hutan": {score: 1}
+      "hutan lahan kering": {score: 1}
+      "hutan mangrove": {score: 1}
+      "perkebunan": {score: 2}
+      "sawah": {score: 2}
+      "semak": {score: 3}
+      "belukar": {score: 3}
+      "pertanian lahan kering": {score: 4}
+      "tegalan": {score: 4}
+      "permukiman": {score: 5}
+      "lahan terbuka": {score: 5}
+      "tambang": {score: 5}
+
+  rainfall:
+    # threshold_mm = input raster curah hujan mm/tahun.
+    # score_raster = input raster sudah skor 1..5.
+    mode: score_raster
+    default_score: 3
+    thresholds:
+      - {min: 0,    max: 1500, score: 1, label: "Rendah"}
+      - {min: 1500, max: 2000, score: 2, label: "Agak rendah"}
+      - {min: 2000, max: 2500, score: 3, label: "Sedang"}
+      - {min: 2500, max: 3000, score: 4, label: "Tinggi"}
+      - {min: 3000, max: 99999, score: 5, label: "Sangat tinggi"}
+
+  soil:
+    default_score: 3
+    field_candidates: ["soil_name", "soil_group", "soil_wrb", "SOIL", "VALUE", "MU_GLOBAL", "kode", "Kode"]
+    raster_values:
+      # Contoh dari mapping HWSD/WRB-style yang pernah kamu pakai.
+      7001: {label: "Technosols", score: 5}
+      4515: {label: "Fluvisols", score: 2}
+      4518: {label: "Fluvisols", score: 2}
+      4519: {label: "Fluvisols", score: 2}
+    classes:
+      "andosols": {score: 2}
+      "cambisols": {score: 3}
+      "fluvisols": {score: 2}
+      "gleysols": {score: 3}
+      "histosols": {score: 4}
+      "leptosols": {score: 5}
+      "luvisols": {score: 3}
+      "nitisols": {score: 2}
+      "acrisols": {score: 4}
+      "alisols": {score: 4}
+      "regosols": {score: 4}
+      "technosols": {score: 5}
+      "urban": {score: 5}
+
+  slope:
+    default_score: 3
+    thresholds:
+      - {min: 0,  max: 8,   score: 1, label: "Datar"}
+      - {min: 8,  max: 15,  score: 2, label: "Landai"}
+      - {min: 15, max: 25,  score: 3, label: "Agak curam"}
+      - {min: 25, max: 40,  score: 4, label: "Curam"}
+      - {min: 40, max: 999, score: 5, label: "Sangat curam"}
+
+# Nama kolom administrasi yang akan dicari otomatis.
+admin_fields:
+  zone_id: ["id", "zone_id", "ID", "FID", "OBJECTID", "kode_desa", "KODE_DESA", "KODE_DAS"]
+  province: ["PROVINSI", "provinsi", "PROV", "prov"]
+  city: ["KAB_KOTA", "KABKOT", "kabupaten", "kota", "WADMKK", "NAMA_DAS", "NAMOBJ"]
+  district: ["KECAMATAN", "kecamatan", "WADMKC"]
+  village: ["DESA", "KELURAHAN", "desa", "kelurahan", "WADMKD"]
+
+recommendations:
+  tidak_kritis:
+    default: "Pemeliharaan tutupan vegetasi, monitoring berkala, dan pengendalian perubahan penggunaan lahan."
+  kritis:
+    default: "Konservasi vegetatif, agroforestri, penguatan tutupan lahan, dan pengendalian erosi ringan-sedang."
+  sangat_kritis:
+    default: "Reboisasi, terasering/konservasi sipil teknis, agroforestri intensif, dan rehabilitasi kawasan DAS prioritas."
+  rules:
+    - when:
+        status: "Sangat Kritis"
+        slope_min: 25
+      recommendation: "Terasering, bangunan pengendali erosi, reboisasi, dan rehabilitasi vegetatif intensif."
+    - when:
+        status: "Sangat Kritis"
+        landcover_score_min: 4
+      recommendation: "Reboisasi atau agroforestri pada lahan terbuka/pertanian lahan kering disertai pengendalian erosi."
+    - when:
+        status: "Kritis"
+        rainfall_score_min: 4
+      recommendation: "Konservasi vegetatif, saluran drainase konservasi, dan penguatan tutupan lahan pada area curah hujan tinggi."
