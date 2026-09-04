@@ -22,29 +22,30 @@ class UserDonationDashboardController extends Controller
             ]);
         }
 
-        $totalDonasi = Donation::whereIn('donor_id', $donorIds)
-            ->whereNotIn('seed_status', ['Ditolak', 'Batal'])
-            ->sum('seed_quantity');
+        $allDonations = Donation::whereIn('donor_id', $donorIds)->get();
 
-        $terealisasi = Donation::whereIn('donor_id', $donorIds)
-            ->where('seed_status', 'Terealisasi')
-            ->sum('seed_quantity');
+        $totalDonasi = $allDonations->whereNotIn('seed_status', ['Ditolak', 'Batal'])
+            ->sum(fn($d) => collect($d->seed_details)->sum('quantity'));
 
-        $diproses = Donation::whereIn('donor_id', $donorIds)
-            ->whereIn('seed_status', ['Pending', 'Terkumpul', 'Disalurkan'])
-            ->sum('seed_quantity');
+        $terealisasi = $allDonations->where('seed_status', 'Terealisasi')
+            ->sum(fn($d) => collect($d->seed_details)->sum('quantity'));
 
-        $recentDonations = Donation::with(['seed', 'donationProgram'])
+        $diproses = $allDonations->whereIn('seed_status', ['Pending', 'Terkumpul', 'Disalurkan'])
+            ->sum(fn($d) => collect($d->seed_details)->sum('quantity'));
+
+        $recentDonations = Donation::with(['donationProgram'])
             ->whereIn('donor_id', $donorIds)
             ->latest()
             ->take(5)
             ->get()
             ->map(function ($donation) {
-                $namaBibit = $donation->seed->nama ?? $donation->seed->name ?? 'Pohon';
+                $details = collect($donation->seed_details);
+                $totalQuantity = $details->sum('quantity');
+                $namaBibit = $details->pluck('name')->filter()->join(', ') ?: 'Bibit';
                 
                 return [
                     'id' => $donation->id,
-                    'title' => $donation->seed_quantity . ' ' . $namaBibit,
+                    'title' => $totalQuantity . ' Bibit (' . $namaBibit . ')',
                     'program' => $donation->donationProgram->name ?? 'Program Umum',
                     'status' => $donation->seed_status,
                 ];

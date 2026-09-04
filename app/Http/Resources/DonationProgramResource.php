@@ -10,7 +10,16 @@ class DonationProgramResource extends JsonResource
     public function toArray(Request $request): array
     {
         $totalCollected = $this->whenLoaded('donations', function () {
-            return $this->donations->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi'])->sum('seed_quantity');
+            return $this->donations->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi'])->sum(function($donation) {
+                $total = 0;
+                $details = $donation->seed_details;
+                if (is_array($details)) {
+                    foreach($details as $detail) {
+                        $total += (int)($detail['quantity'] ?? 0);
+                    }
+                }
+                return $total;
+            });
         }, $this->total_seeds_collected ?? 0);
 
         $totalRealized = $this->whenLoaded('plantedSeeds', function () {
@@ -23,12 +32,24 @@ class DonationProgramResource extends JsonResource
         if ($this->relationLoaded('donations') && $this->relationLoaded('seeds')) {
             $validDonations = $this->donations->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi']);
             
-            $grouped = $validDonations->groupBy('seed_id');
+            $grouped = [];
+            foreach ($validDonations as $donation) {
+                $details = $donation->seed_details;
+                if (is_array($details)) {
+                    foreach ($details as $detail) {
+                        $seedId = $detail['id'] ?? null;
+                        if ($seedId) {
+                            if (!isset($grouped[$seedId])) {
+                                $grouped[$seedId] = 0;
+                            }
+                            $grouped[$seedId] += (int)($detail['quantity'] ?? 0);
+                        }
+                    }
+                }
+            }
             
             $idx = 1;
-            foreach ($grouped as $seedId => $group) {
-                $qty = $group->sum('seed_quantity');
-                
+            foreach ($grouped as $seedId => $qty) {
                 $seed = $this->seeds->firstWhere('id', $seedId);
                 $seedName = $seed ? $seed->name : 'Bibit';
                 

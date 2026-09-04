@@ -10,13 +10,16 @@ class Donation extends Model
         'donation_program_id',
         'transaction_id',
         'donor_id',
-        'seed_id',
-        'seed_quantity',
+        'seed_details',
         'seed_status',
         'receipt_path',
         'certificate_path',
         'bast_path',   
         'proof_path',
+    ];
+
+    protected $casts = [
+        'seed_details' => 'array',
     ];
 
     public function donationProgram()
@@ -27,11 +30,6 @@ class Donation extends Model
     public function donor()
     {
         return $this->belongsTo(Donor::class);
-    }
-
-    public function seed()
-    {
-        return $this->belongsTo(Seed::class);
     }
 
     public function transaction()

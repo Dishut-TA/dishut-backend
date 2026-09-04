@@ -11,10 +11,8 @@ class DonationController extends Controller
 {
     public function index()
     {
-        $donations = Donation::with(['seed.specifications', 'donor', 'donationProgram', 'transaction'])->get();
+        $donations = Donation::with(['donor', 'donationProgram', 'transaction'])->latest()->get();
         return DonationResource::collection($donations);
-
-        
     }
 
     public function store(Request $request)
@@ -28,7 +26,7 @@ class DonationController extends Controller
 
     public function show(string $id)
     {
-        $item = Donation::with(['seed.specifications', 'donor', 'donationProgram'])->findOrFail($id);
+        $item = Donation::with(['donor', 'donationProgram'])->findOrFail($id);
         return new DonationResource($item);
     }
 
@@ -41,7 +39,7 @@ class DonationController extends Controller
     {
         $item = Donation::findOrFail($id);
         
-        $originalStatus = $item->seed_status;
+        $originalStatus = strtolower(trim($item->seed_status));
 
         if ($request->hasFile('bast_file')) {
             $request->validate([
@@ -75,25 +73,33 @@ class DonationController extends Controller
         
         // 3. Ambil status BARU secara fresh dari database
         $newStatus = strtolower(trim($item->fresh()->seed_status));
-        $quantity = (int) $item->seed_quantity;
         
-        // 4. Proses Update Stok
-        $seedSpec = \App\Models\SeedSpecification::where('seed_id', $item->seed_id)->first();
-
-        if ($seedSpec && $quantity > 0) {
-            // Skenario A: Dari Pending -> Terkumpul
-            if ($originalStatus !== 'terkumpul' && $newStatus === 'terkumpul') {
-                $seedSpec->decrement('stock', $quantity);
-                \Log::info("Berhasil! Stok bibit {$item->seed_id} dikurangi {$quantity}");
-            }
-            // Skenario B: Dari Terkumpul -> Ditolak/Pending (Pembatalan)
-            elseif ($originalStatus === 'terkumpul' && $newStatus !== 'terkumpul') {
-                $seedSpec->increment('stock', $quantity);
-                \Log::info("Dikembalikan! Stok bibit {$item->seed_id} ditambah {$quantity}");
+        // 4. Proses Update Stok berdasarkan seed_details
+        if (is_array($item->seed_details)) {
+            foreach ($item->seed_details as $seedDetail) {
+                $quantity = (int) ($seedDetail['quantity'] ?? 0);
+                $seedId = $seedDetail['id'] ?? null;
+                
+                if ($seedId && $quantity > 0) {
+                    $seedSpec = \App\Models\SeedSpecification::where('seed_id', $seedId)->first();
+                    
+                    if ($seedSpec) {
+                        // Skenario A: Dari Pending -> Terkumpul
+                        if ($originalStatus !== 'terkumpul' && $newStatus === 'terkumpul') {
+                            $seedSpec->decrement('stock', $quantity);
+                            \Log::info("Berhasil! Stok bibit {$seedId} dikurangi {$quantity}");
+                        }
+                        // Skenario B: Dari Terkumpul -> Ditolak/Pending (Pembatalan)
+                        elseif ($originalStatus === 'terkumpul' && $newStatus !== 'terkumpul') {
+                            $seedSpec->increment('stock', $quantity);
+                            \Log::info("Dikembalikan! Stok bibit {$seedId} ditambah {$quantity}");
+                        }
+                    }
+                }
             }
         }
         
-        $item->load(['seed.specifications', 'donor', 'donationProgram']);
+        $item->load(['donor', 'donationProgram']);
         
         return new DonationResource($item);
     }
