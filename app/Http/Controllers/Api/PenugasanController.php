@@ -55,6 +55,39 @@ class PenugasanController extends Controller
         $donations = DonationProgram::with(['kth', 'analysisResultZone', 'seeds'])->where('status', 'Aktif')->get();
         foreach ($donations as $don) {
             $key = DonationProgram::class . '_' . $don->id;
+            
+            $totalSeedsBast = 0;
+            $allocationsBast = [];
+            $grouped = [];
+            
+            foreach ($don->donations as $donation) {
+                if (is_array($donation->seed_details)) {
+                    foreach ($donation->seed_details as $detail) {
+                        $seedId = $detail['id'] ?? null;
+                        $seedName = $detail['name'] ?? 'Bibit';
+                        $qty = (int)($detail['quantity'] ?? 0);
+                        
+                        $totalSeedsBast += $qty;
+                        
+                        if ($seedId) {
+                            if (!isset($grouped[$seedId])) {
+                                $grouped[$seedId] = [
+                                    'nama' => $seedName,
+                                    'jumlah' => 0
+                                ];
+                            }
+                            $grouped[$seedId]['jumlah'] += $qty;
+                        }
+                    }
+                }
+            }
+            
+            foreach ($grouped as $group) {
+                $allocationsBast[] = $group;
+            }
+            
+            $don->total_seeds_bast = $totalSeedsBast;
+            $don->allocations_bast = $allocationsBast;
             $penugasan = $penugasans->get($key);
             
             $year = $don->created_at ? $don->created_at->format('Y') : date('Y');
@@ -753,3 +786,5 @@ class PenugasanController extends Controller
         ], 201);
     }
 }
+
+

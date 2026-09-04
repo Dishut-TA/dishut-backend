@@ -17,6 +17,7 @@ class DonationProgram extends Model
         'total_seeds_collected',
         'total_seeds_realized',
         'status',
+        'bast_path',
         'image'
     ];
 
@@ -60,3 +61,4 @@ class DonationProgram extends Model
         return $this->hasMany(Report::class);
     }
 }
+
