@@ -17,7 +17,9 @@ class AdminDashboardController extends Controller
         $programs = DonationProgram::with(['donations', 'plantedSeeds'])->get();
 
         $totalCollected = $programs->sum(function($program) {
-            return $program->donations->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi'])->sum('seed_quantity');
+            return $program->donations->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi'])->sum(function($d) {
+                return collect($d->seed_details)->sum('quantity');
+            });
         });
 
         $totalRealized = $programs->sum(function($program) {
@@ -29,9 +31,8 @@ class AdminDashboardController extends Controller
 
         $programAktif = DonationProgram::where('status', 'Aktif')->count();
 
-        $donaturPending = Donation::with(['donor', 'donationProgram', 'seed'])
-            ->where('seed_status', 'Pending')
-            ->get();
+        $donaturPending = Donation::with(['donor', 'donationProgram'])
+            ->where('seed_status', 'Pending')->latest()->get();
 
         $progressProgram = DonationProgramResource::collection($programs);
 
@@ -47,3 +48,5 @@ class AdminDashboardController extends Controller
         ]);
     }
 }
+
+

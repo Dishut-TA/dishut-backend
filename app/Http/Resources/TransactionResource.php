@@ -16,6 +16,7 @@ class TransactionResource extends JsonResource
             'amount' => $this->amount,
             'transaction_date' => $this->transaction_date,
             'proof_path' => $this->proof_path,
+            'proof_url' => $this->proof_path ? asset('storage/' . $this->proof_path) : null,
             'payment_method' => $this->payment_method,
             'status' => $this->status,
             'created_at' => $this->created_at,

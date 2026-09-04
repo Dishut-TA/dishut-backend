@@ -12,9 +12,9 @@ class UserSeeder extends Seeder
     {
         // 1. Akun Penyuluh
         $penyuluh = User::updateOrCreate(
-            ['email' => 'penyuluh1@dinhut.com'],
+            ['email' => 'rizkya@gmail.com'],
             [
-                'username' => 'penyuluh_jabar',
+                'username' => 'Rizkya Putri',
                 'password' => Hash::make('password123'),
             ]
         );
@@ -24,9 +24,9 @@ class UserSeeder extends Seeder
 
         // 2. Akun Kepala Bidang PDAS
         $kabid = User::updateOrCreate(
-            ['email' => 'kabidpdas@dinhut.com'],
+            ['email' => 'algiffari@gmail.com'],
             [
-                'username' => 'kabid_pdas',
+                'username' => 'Muhammad Al-Giffari',
                 'password' => Hash::make('password123'),
             ]
         );
@@ -35,9 +35,9 @@ class UserSeeder extends Seeder
 
         // 3. Akun Staff PDAS
         $staff = User::updateOrCreate(
-            ['email' => 'staffpdas@dinhut.com'],
+            ['email' => 'marva@gmail.com'],
             [
-                'username' => 'staff_pdas',
+                'username' => 'Marva Zahra',
                 'password' => Hash::make('password123'),
             ]
         );
@@ -46,9 +46,9 @@ class UserSeeder extends Seeder
 
         // 4. Akun KTH Pelaksanaan
         $kth = User::updateOrCreate(
-            ['email' => 'kthpelaksanaan@dinhut.com'],
+            ['email' => 'kthpelaksanaan@gmail.com'],
             [
-                'username' => 'kth_pelaksanaan',
+                'username' => 'KTH Pelaksanaan',
                 'password' => Hash::make('password123'),
             ]
         );

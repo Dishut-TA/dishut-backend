@@ -16,7 +16,6 @@ class TransactionController extends Controller
     {
         $transactions = Transaction::with([
             'donations.donationProgram', 
-            'donations.seed', 
             'donor'
         ])->get();
 
@@ -59,13 +58,28 @@ class TransactionController extends Controller
         ]);
 
         $bibits = json_decode($request->selected_bibits, true);
+        $seedDetails = [];
         foreach ($bibits as $bibit) {
+            $seed = \App\Models\Seed::find($bibit['id']);
+            if ($seed) {
+                $spec = \App\Models\SeedSpecification::where('seed_id', $seed->id)->first();
+                $price = $spec ? (float) $spec->price : 0;
+
+                $seedDetails[] = [
+                    'id' => $seed->id,
+                    'name' => $seed->name,
+                    'quantity' => $bibit['quantity'],
+                    'price' => $price,
+                ];
+            }
+        }
+
+        if (!empty($seedDetails)) {
             Donation::create([
                 'transaction_id' => $transaction->id,
                 'donation_program_id' => $request->program_id,
                 'donor_id' => $donor->id,
-                'seed_id' => $bibit['id'],
-                'seed_quantity' => $bibit['quantity'],
+                'seed_details' => $seedDetails,
                 'seed_status' => 'Pending',
             ]);
         }
@@ -73,7 +87,7 @@ class TransactionController extends Controller
         DB::commit();
 
         // Load relasi untuk response
-        $transaction->load(['donations.seed', 'donations.donationProgram', 'donor']);
+        $transaction->load(['donations.donationProgram', 'donor']);
         return new TransactionResource($transaction);
 
     } catch (\Exception $e) {
@@ -86,7 +100,6 @@ class TransactionController extends Controller
     {
         $item = Transaction::with([
             'donations.donationProgram', 
-            'donations.seed.specifications', 
             'donor'
         ])->findOrFail($id);
         
@@ -98,7 +111,7 @@ class TransactionController extends Controller
         $item = Transaction::findOrFail($id);
         $item->update($request->all());
         
-        $item->load(['donations.donationProgram', 'donations.seed', 'donor']);
+        $item->load(['donations.donationProgram', 'donor']);
         return new TransactionResource($item);
     }
 
