@@ -53,11 +53,32 @@ class AnalysisResultZone extends Model
         return $this->belongsTo(AnalysisResult::class, 'result_id');
     }
 
+    protected $appends = ['titik_koordinat'];
+
+    /**
+     * Accessor untuk mendapatkan titik koordinat dari tabel village.
+     */
+    public function getTitikKoordinatAttribute(): ?string
+    {
+        if ($this->relationLoaded('village') && $this->village && $this->village->latitude && $this->village->longitude) {
+            return $this->village->latitude . ', ' . $this->village->longitude;
+        }
+        return null;
+    }
+
     /**
      * Relasi ke data validasi lapangan penyuluh.
      */
     public function fieldValidations(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(FieldValidation::class, 'zone_id');
+    }
+
+    /**
+     * Relasi ke data Master Village (Desa) berdasarkan zone_id.
+     */
+    public function village(): BelongsTo
+    {
+        return $this->belongsTo(Village::class, 'zone_id', 'id');
     }
 }

@@ -76,6 +76,15 @@ Route::get('evaluasi/{id}', [\App\Http\Controllers\Api\EvaluasiController::class
 Route::post('evaluasi/{id}/submit', [\App\Http\Controllers\Api\EvaluasiController::class, 'submit']);
 Route::post('evaluasi/{id}/selesaikan', [\App\Http\Controllers\Api\EvaluasiController::class, 'selesaikan']);
 
+// Penugasan Evaluasi (Inisiasi oleh Staff PDAS)
+Route::get('penugasan-evaluasi/programs', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'programs']);
+Route::apiResource('penugasan-evaluasi', \App\Http\Controllers\Api\PenugasanEvaluasiController::class)->only(['index', 'store', 'show']);
+Route::put('/penugasan-evaluasi/{id}/mulai', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'mulaiEvaluasi']);
+Route::get('/penugasan-evaluasi-perhitungan', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'listPerhitungan']);
+Route::put('/penugasan-evaluasi/{id}/faktual', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'saveFaktual']);
+Route::put('/penugasan-evaluasi/{id}/kalkulasi', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'kalkulasiEvaluasi']);
+Route::post('/penugasan-evaluasi/{id}/tindak-lanjut', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'submitTindakLanjut']);
+
 // Pelaksanaan Penanaman & Penugasan
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('rehabilitasi/valid-zones', [\App\Http\Controllers\Api\RehabilitasiController::class, 'getValidZones']);
