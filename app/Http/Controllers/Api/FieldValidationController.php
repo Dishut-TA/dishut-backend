@@ -38,9 +38,23 @@ class FieldValidationController extends Controller
             'kondisi_vegetasi' => 'nullable|string',
             'kendala_lapangan' => 'nullable|string',
             'titik_koordinat_gps' => 'nullable|string',
-            'foto_lokasi_url' => 'nullable|string',
+            'foto' => 'nullable|image|max:10240', // 10MB limit
+            'foto_lokasi_url' => 'nullable|string', // Fallback if using string
             'catatan_peninjauan' => 'nullable|string',
         ]);
+
+        $fotoUrl = $request->input('foto_lokasi_url');
+        
+        \Illuminate\Support\Facades\Log::info('FieldValidation Store Request:', [
+            'all' => $request->all(),
+            'has_file_foto' => $request->hasFile('foto'),
+            'file_foto' => $request->file('foto'),
+        ]);
+
+        if ($request->hasFile('foto')) {
+            $path = $request->file('foto')->store('field_validations', 'public');
+            $fotoUrl = url('storage/' . $path);
+        }
 
         $validation = FieldValidation::create([
             'zone_id' => $request->zone_id,
@@ -51,7 +65,7 @@ class FieldValidationController extends Controller
             'kondisi_vegetasi' => $request->kondisi_vegetasi,
             'kendala_lapangan' => $request->kendala_lapangan,
             'titik_koordinat_gps' => $request->titik_koordinat_gps,
-            'foto_lokasi_url' => $request->foto_lokasi_url,
+            'foto_lokasi_url' => $fotoUrl,
             'catatan_peninjauan' => $request->catatan_peninjauan,
             'status_verifikasi' => 'Belum',
         ]);

@@ -9,13 +9,14 @@ class AnalysisResultResource extends JsonResource
 {
     public function toArray($request)
     {
-        // Ambil data zona dari database Laravel yang sudah berisi KTH & CDK
-        $zones = AnalysisResultZone::where('result_id', $this->id)->get();
+        // Ambil data zona dari database Laravel yang sudah berisi KTH & CDK beserta validasi lapangan dan data desa
+        $zones = AnalysisResultZone::with(['fieldValidations', 'village'])->where('result_id', $this->id)->get();
 
         // Buat pratinjau tabel (maksimal 5 baris) dari database yang sudah ada KTH-nya
         $pratinjauTabel = $zones->isNotEmpty()
             ? $zones->take(5)->map(function ($z) {
                 return [
+                    "id"                    => $z->id,
                     "zone_id"               => $z->zone_id,
                     "provinsi"              => $z->provinsi,
                     "kota_kabupaten"        => $z->kabupaten,
@@ -28,6 +29,11 @@ class AnalysisResultResource extends JsonResource
                     "cdk"                   => $z->cdk,
                     "nama_kelompok"         => $z->nama_kelompok,
                     "ketua_kelompok"        => $z->ketua_kelompok,
+                    "titik_koordinat"       => $z->village && $z->village->latitude && $z->village->longitude
+                                                ? $z->village->latitude . ', ' . $z->village->longitude 
+                                                : null,
+                    "field_validations"     => $z->fieldValidations,
+                    "village_data"          => $z->village,
                 ];
             })->values()
             : collect($this->table_json ?? [])->take(5)->values();

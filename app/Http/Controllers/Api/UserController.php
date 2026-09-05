@@ -12,10 +12,16 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $users = User::with(['roles', 'pegawai'])->get();
+            $query = User::with(['roles', 'pegawai']);
+            
+            if ($request->has('role')) {
+                $query->role($request->role);
+            }
+            
+            $users = $query->get();
 
             if ($users->isEmpty()) {
                 return response()->json([

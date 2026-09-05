@@ -287,8 +287,8 @@ $pythonResponse = $this->cpiService->analyze(
             return response()->json(['message' => 'Data tabel belum tersedia.'], 404);
         }
 
-        // Ambil data yang SUDAH dimodifikasi dengan KTH di database
-        $zones = \App\Models\AnalysisResultZone::where('result_id', $result->id)->get();
+        // Ambil data yang SUDAH dimodifikasi dengan KTH di database beserta relasi desa
+        $zones = \App\Models\AnalysisResultZone::with('village')->where('result_id', $result->id)->get();
 
         $mappedData = $zones->map(function ($z) {
             return [
@@ -302,6 +302,8 @@ $pythonResponse = $this->cpiService->analyze(
                 'cdk'                    => $z->cdk,             // Field KTH
                 'nama_kelompok'          => $z->nama_kelompok,   // Field KTH
                 'ketua_kelompok'         => $z->ketua_kelompok,  // Field KTH
+                'latitude'               => $z->village ? $z->village->latitude : null,
+                'longitude'              => $z->village ? $z->village->longitude : null,
             ];
         });
 
@@ -473,7 +475,7 @@ $pythonResponse = $this->cpiService->analyze(
             return response()->json(['message' => 'Hasil analisis belum tersedia.'], 404);
         }
 
-        $zones = AnalysisResultZone::with('fieldValidations')
+        $zones = AnalysisResultZone::with(['fieldValidations', 'village'])
             ->where('result_id', $result->id)
             ->get();
 
