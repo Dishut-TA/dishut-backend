@@ -27,7 +27,8 @@ class Penugasan extends Model
         'metode',
         'prioritas',
         'tujuan',
-        'lampiran_penugasan'
+        'lampiran_penugasan',
+        'persentase_tumbuh'
     ];
 
     /**

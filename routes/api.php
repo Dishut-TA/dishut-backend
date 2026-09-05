@@ -73,6 +73,8 @@ Route::get('monitoring/dashboard', [\App\Http\Controllers\Api\MonitoringControll
 Route::get('evaluasi/dashboard-stats', [\App\Http\Controllers\Api\EvaluasiController::class, 'dashboardStats']);
 Route::get('evaluasi', [\App\Http\Controllers\Api\EvaluasiController::class, 'index']);
 Route::get('evaluasi/{id}', [\App\Http\Controllers\Api\EvaluasiController::class, 'show']);
+Route::post('evaluasi/{id}/submit', [\App\Http\Controllers\Api\EvaluasiController::class, 'submit']);
+Route::post('evaluasi/{id}/selesaikan', [\App\Http\Controllers\Api\EvaluasiController::class, 'selesaikan']);
 
 // Pelaksanaan Penanaman & Penugasan
 Route::middleware('auth:sanctum')->group(function () {

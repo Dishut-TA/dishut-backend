@@ -17,6 +17,13 @@ class PetakUkur extends Model
         'luas',
         'polygon_data',
         'status',
+        'eval_bibit_tumbuh',
+        'eval_persentase_tumbuh',
+        'eval_tinggi_rata',
+        'eval_koordinat',
+        'eval_foto',
+        'eval_keterangan',
+        'eval_at',
     ];
 
     protected $casts = [

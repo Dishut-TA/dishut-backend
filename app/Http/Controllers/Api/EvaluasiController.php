@@ -9,6 +9,7 @@ use App\Models\Penugasan;
 use App\Models\DonationProgram;
 use App\Models\ProgramApbd;
 use App\Models\ProgramCsr;
+use App\Models\PetakUkur;
 
 class EvaluasiController extends Controller
 {
@@ -143,6 +144,95 @@ class EvaluasiController extends Controller
 
         return response()->json([
             'message' => 'Detail Evaluasi',
+            'data' => $penugasan
+        ]);
+    }
+
+    /**
+     * Simpan hasil evaluasi lapangan per Petak Ukur dan tandai penugasan Selesai.
+     * Menerima: petaks[] = [{ petak_ukur_id, bibit_tumbuh, tinggi_rata, koordinat, keterangan, foto (file) }]
+     */
+    public function submit(Request $request, $id): JsonResponse
+    {
+        $penugasan = Penugasan::find($id);
+
+        if (!$penugasan) {
+            return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
+        }
+
+        $request->validate([
+            'petaks' => 'required|array|min:1',
+            'petaks.*.petak_ukur_id' => 'required|exists:petak_ukurs,id',
+            'petaks.*.bibit_tumbuh' => 'required|integer|min:0',
+            'petaks.*.tinggi_rata' => 'nullable|numeric',
+            'petaks.*.koordinat' => 'required|string',
+            'petaks.*.keterangan' => 'nullable|string',
+        ]);
+
+        $totalPersentase = 0;
+        $jumlahPu = 0;
+
+        foreach ($request->petaks as $index => $petakInput) {
+            $petak = PetakUkur::find($petakInput['petak_ukur_id']);
+            if (!$petak) {
+                continue;
+            }
+
+            $rencana = $petak->dataTanamans()->count();
+            $tumbuh = (int) $petakInput['bibit_tumbuh'];
+            $persentase = $rencana > 0 ? round(($tumbuh / $rencana) * 100, 2) : 0;
+
+            $fotoPath = $petak->eval_foto;
+            $fotoFile = $request->file("petaks.$index.foto");
+            if ($fotoFile) {
+                $fotoPath = $fotoFile->store('evaluasi_petak', 'public');
+            }
+
+            $petak->update([
+                'eval_bibit_tumbuh' => $tumbuh,
+                'eval_persentase_tumbuh' => $persentase,
+                'eval_tinggi_rata' => $petakInput['tinggi_rata'] ?? null,
+                'eval_koordinat' => $petakInput['koordinat'],
+                'eval_keterangan' => $petakInput['keterangan'] ?? null,
+                'eval_foto' => $fotoPath,
+                'eval_at' => now(),
+            ]);
+
+            $totalPersentase += $persentase;
+            $jumlahPu++;
+        }
+
+        $rataPersentase = $jumlahPu > 0 ? round($totalPersentase / $jumlahPu, 2) : 0;
+
+        $penugasan->update([
+            'status' => 'Monitoring Selesai',
+            'persentase_tumbuh' => $rataPersentase,
+        ]);
+
+        return response()->json([
+            'message' => 'Evaluasi lapangan berhasil disimpan, status diperbarui menjadi Selesai',
+            'data' => $penugasan->fresh(['petakUkurs'])
+        ]);
+    }
+
+    /**
+     * Versi simpel: langsung tandai penugasan Monitoring sebagai selesai
+     * tanpa perlu mengisi form evaluasi per Petak Ukur satu-satu.
+     */
+    public function selesaikan($id): JsonResponse
+    {
+        $penugasan = Penugasan::find($id);
+
+        if (!$penugasan) {
+            return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
+        }
+
+        $penugasan->update([
+            'status' => 'Monitoring Selesai'
+        ]);
+
+        return response()->json([
+            'message' => 'Penugasan berhasil ditandai selesai',
             'data' => $penugasan
         ]);
     }

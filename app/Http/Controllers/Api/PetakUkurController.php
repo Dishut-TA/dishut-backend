@@ -67,8 +67,17 @@ class PetakUkurController extends Controller
             'nama_tanaman' => 'nullable|string',
             'jumlah' => 'required|integer|min:1',
             'kondisi_tanaman' => 'nullable|string',
-            'keterangan' => 'nullable|string'
+            'keterangan' => 'nullable|string',
+            'tinggi_tanaman' => 'nullable|numeric',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'photo' => 'nullable|image|max:5120'
         ]);
+
+        $fotoUrl = null;
+        if ($request->hasFile('photo')) {
+            $fotoUrl = $request->file('photo')->store('data_tanaman', 'public');
+        }
 
         $tanaman = \App\Models\DataTanaman::create([
             'petak_ukur_id' => $id,
@@ -76,7 +85,11 @@ class PetakUkurController extends Controller
             'nama_tanaman' => $request->nama_tanaman,
             'jumlah' => $request->jumlah,
             'kondisi_tanaman' => $request->kondisi_tanaman,
-            'keterangan' => $request->keterangan
+            'keterangan' => $request->keterangan,
+            'tinggi_tanaman' => $request->tinggi_tanaman,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'foto_url' => $fotoUrl
         ]);
 
         return response()->json([

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class DataTanaman extends Model
 {
     protected $table = 'data_tanamans';
-    protected $fillable = ['petak_ukur_id', 'seed_id', 'nama_tanaman', 'jumlah', 'kondisi_tanaman', 'keterangan', 'foto_url'];
+    protected $fillable = ['petak_ukur_id', 'seed_id', 'nama_tanaman', 'jumlah', 'kondisi_tanaman', 'keterangan', 'foto_url', 'tinggi_tanaman', 'latitude', 'longitude'];
 
     public function petakUkur()
     {
