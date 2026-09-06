@@ -431,4 +431,111 @@ class PenugasanEvaluasiController extends Controller
             'data' => $penugasanTL
         ]);
     }
+
+    /**
+     * GET /api/penugasan-evaluasi-laporan-kabid
+     * Mengambil daftar evaluasi yang sudah dihitung pada tahap perhitungan hasil evaluasi untuk Kabid
+     */
+    public function listLaporanKabid(Request $request): JsonResponse
+    {
+        $evaluasis = Evaluasi::with(['evaluable.kth', 'tim.user.pegawai'])
+            ->whereNotNull('persentase_tumbuh')
+            ->orWhereIn('status', [
+                'Selesai Evaluasi', 
+                'Menunggu Pengesahan', 
+                'Menunggu Pengesahan KABID',
+                'Menunggu Verifikasi Hasil', 
+                'Tindak Lanjut', 
+                'Disetujui', 
+                'Disetujui KABID', 
+                'Selesai'
+            ])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        $mappedData = $evaluasis->map(function ($eval) {
+            $program = $eval->evaluable;
+            $namaProyek = '-';
+            $lokasi = '-';
+            
+            if ($eval->evaluable_type === 'App\\Models\\ProgramApbd') {
+                $namaProyek = $program->nama_program ?? 'Program APBD';
+                $lokasi = $program->lokasi ?? ($program->kth ? ($program->kth->desa_kelurahan . ', ' . $program->kth->kabupaten_kota) : '-');
+            } elseif ($eval->evaluable_type === 'App\\Models\\ProgramCsr') {
+                $namaProyek = $program->nama_program ?? 'Program CSR';
+                $lokasi = $program->lokasi ?? ($program->kth ? ($program->kth->desa_kelurahan . ', ' . $program->kth->kabupaten_kota) : '-');
+            } elseif ($eval->evaluable_type === 'App\\Models\\DonationProgram') {
+                $namaProyek = $program->name ?? 'Program Donasi';
+                $lokasi = $program->location ?? '-';
+            }
+
+            // Tim Penilai / Tim Penyusun
+            $timString = '-';
+            if ($eval->tim && $eval->tim->count() > 0) {
+                $ketua = $eval->tim->firstWhere('peran', 'Ketua Tim');
+                $first = $ketua ?: $eval->tim->first();
+                $name = $first->user ? ($first->user->username ?? $first->user->name) : 'Staff PDAS';
+                $timString = $eval->tim->count() > 1 ? "{$name} Dkk" : $name;
+            }
+
+            // Status UI untuk KABID
+            $isDisetujui = in_array($eval->status, ['Disetujui', 'Disetujui KABID', 'Selesai']);
+            $statusUI = $isDisetujui ? 'DISETUJUI' : 'MENUNGGU PENGESAHAN';
+
+            return [
+                'id' => $eval->id,
+                'proyek' => $namaProyek,
+                'lokasi' => $lokasi,
+                'periode' => $eval->periode_evaluasi ?? 'Penanaman Awal (P0)',
+                'tim' => $timString,
+                'status' => $statusUI,
+                'status_asli' => $eval->status,
+                'persentase_tumbuh' => $eval->persentase_tumbuh,
+                'tanggal_validasi' => $eval->updated_at ? $eval->updated_at->isoFormat('D MMMM Y') : '-',
+            ];
+        });
+
+        return response()->json([
+            'message' => 'Daftar laporan evaluasi untuk Kabid',
+            'data' => $mappedData
+        ]);
+    }
+
+    /**
+     * PUT /api/penugasan-evaluasi/{id}/sahkan
+     * Pengesahan laporan evaluasi oleh Kepala Bidang PDAS
+     */
+    public function sahkanLaporan(Request $request, $id): JsonResponse
+    {
+        $evaluasi = Evaluasi::findOrFail($id);
+        $evaluasi->status = 'Disetujui KABID';
+        if ($request->filled('catatan')) {
+            $evaluasi->catatan = $request->catatan;
+        }
+        $evaluasi->save();
+
+        return response()->json([
+            'message' => 'Laporan evaluasi berhasil disahkan!',
+            'data' => $evaluasi
+        ]);
+    }
+
+    /**
+     * PUT /api/penugasan-evaluasi/{id}/revisi
+     * Mengembalikan laporan evaluasi ke tim penilai untuk revisi
+     */
+    public function revisiLaporan(Request $request, $id): JsonResponse
+    {
+        $evaluasi = Evaluasi::findOrFail($id);
+        $evaluasi->status = 'Perlu Revisi';
+        if ($request->filled('catatan')) {
+            $evaluasi->catatan = $request->catatan;
+        }
+        $evaluasi->save();
+
+        return response()->json([
+            'message' => 'Laporan evaluasi dikembalikan untuk revisi',
+            'data' => $evaluasi
+        ]);
+    }
 }

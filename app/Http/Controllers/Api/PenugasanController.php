@@ -458,7 +458,7 @@ class PenugasanController extends Controller
         $model = Penugasan::with(['penyuluh.kth', 'petakUkurs.dataTanamans', 'dokumentasi', 'penugasanable' => function (MorphTo $morphTo) {
             $morphTo->morphWith([
                 AnalysisResultZone::class => ['fieldValidations'],
-                DonationProgram::class => ['kth', 'analysisResultZone', 'seeds'],
+                DonationProgram::class => ['kth', 'analysisResultZone', 'seeds', 'donations'],
                 ProgramApbd::class => ['analysisResultZone', 'kth'],
                 ProgramCsr::class => ['analysisResultZone', 'kth']
             ]);
@@ -469,7 +469,7 @@ class PenugasanController extends Controller
             $query = Penugasan::with(['penyuluh.kth', 'petakUkurs.dataTanamans', 'dokumentasi', 'penugasanable' => function (MorphTo $morphTo) {
                 $morphTo->morphWith([
                     AnalysisResultZone::class => ['fieldValidations'],
-                    DonationProgram::class => ['kth', 'analysisResultZone', 'seeds'],
+                    DonationProgram::class => ['kth', 'analysisResultZone', 'seeds', 'donations'],
                     ProgramApbd::class => ['analysisResultZone', 'kth'],
                     ProgramCsr::class => ['analysisResultZone', 'kth']
                 ]);
@@ -506,7 +506,7 @@ class PenugasanController extends Controller
         // Jika ini adalah penugasan Monitoring atau Tindak Lanjut, Petak Ukurnya 
         // berada di penugasan Pelaksanaan Penanaman. Kita perlu menyalinnya ke response.
         if (in_array($penugasan->jenis_kegiatan, ['Monitoring', 'Tindak Lanjut']) && $penugasan->petakUkurs->isEmpty()) {
-            $pelaksanaan = Penugasan::with('petakUkurs.dataTanamans')
+            $pelaksanaan = Penugasan::with(['petakUkurs.dataTanamans', 'penyuluh'])
                 ->where('penugasanable_type', $penugasan->penugasanable_type)
                 ->where('penugasanable_id', $penugasan->penugasanable_id)
                 ->where('jenis_kegiatan', 'Pelaksanaan Penanaman')
@@ -515,7 +515,19 @@ class PenugasanController extends Controller
             if ($pelaksanaan && $pelaksanaan->petakUkurs) {
                 // Attach as an attribute so it gets serialized
                 $penugasan->setRelation('petakUkurs', $pelaksanaan->petakUkurs);
+                $penugasan->setAttribute('pelaksanaan_penanaman', $pelaksanaan);
             }
+        }
+
+        // Ambil riwayat monitoring
+        if ($penugasan->penugasanable_type && $penugasan->penugasanable_id) {
+            $riwayat = Penugasan::with(['penyuluh'])
+                ->where('penugasanable_type', $penugasan->penugasanable_type)
+                ->where('penugasanable_id', $penugasan->penugasanable_id)
+                ->whereIn('jenis_kegiatan', ['Monitoring', 'Tindak Lanjut'])
+                ->orderBy('created_at', 'asc')
+                ->get();
+            $penugasan->setAttribute('riwayat_monitoring', $riwayat);
         }
 
         // Format data untuk UI
@@ -753,3 +765,5 @@ class PenugasanController extends Controller
         ], 201);
     }
 }
+
+

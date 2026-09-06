@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'kth_id',
     ];
 
     /**
@@ -50,7 +51,7 @@ class User extends Authenticatable
 
     public function kth()
     {
-        return $this->hasOne(Kth::class);
+        return $this->belongsTo(Kth::class, 'kth_id');
     }
 
     public function csr()
