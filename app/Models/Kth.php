@@ -8,7 +8,6 @@ class Kth extends Model
 {
     protected $fillable = [
         'cdk',
-        'user_id',
         'no_rekening',
         'kabupaten_kota',
         'kecamatan',
@@ -25,7 +24,7 @@ class Kth extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->hasMany(User::class, 'kth_id');
     }
 
     public function programApbds()

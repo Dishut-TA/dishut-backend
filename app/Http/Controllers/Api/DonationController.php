@@ -100,7 +100,28 @@ class DonationController extends Controller
         }
         
         $item->load(['donor', 'donationProgram']);
+
+        // Update total_seeds_collected di DonationProgram jika status berubah ke Disalurkan/Terealisasi
+        if (in_array($newStatus, ['disalurkan', 'terealisasi'])) {
+            $program = $item->donationProgram;
+            if ($program) {
+                $totalCollected = Donation::where('donation_program_id', $program->id)
+                    ->whereIn('seed_status', ['Terkumpul', 'Disalurkan', 'Terealisasi'])
+                    ->get()
+                    ->sum(function($don) {
+                        $total = 0;
+                        if (is_array($don->seed_details)) {
+                            foreach ($don->seed_details as $detail) {
+                                $total += (int)($detail['quantity'] ?? 0);
+                            }
+                        }
+                        return $total;
+                    });
+                $program->update(['total_seeds_collected' => $totalCollected]);
+            }
+        }
         
         return new DonationResource($item);
     }
 }
+

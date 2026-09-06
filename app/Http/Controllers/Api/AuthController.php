@@ -39,7 +39,7 @@ class AuthController extends Controller
                 'nip' => $validated['nip'] ?? null,
             ]);
 
-            $user->load('pegawai');
+            $user->load(['pegawai', 'kth', 'roles.permissions']);
 
 
             $token = $user->createToken('auth_token')->plainTextToken;
@@ -93,7 +93,7 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            $user->load('pegawai');
+            $user->load(['pegawai', 'kth', 'roles.permissions']);
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -126,7 +126,7 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Data user berhasil diambil',
                 'code' => 200,
-                'payload' => new UserResource($request->user()->load(['roles.permissions', 'pegawai']))
+                'payload' => new UserResource($request->user()->load(['roles.permissions', 'pegawai', 'kth']))
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -156,3 +156,4 @@ class AuthController extends Controller
         }
     }
 }
+

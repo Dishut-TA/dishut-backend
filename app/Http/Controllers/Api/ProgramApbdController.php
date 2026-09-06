@@ -30,6 +30,7 @@ class ProgramApbdController extends Controller
             'jumlah_bibit'      => 'nullable|numeric',
             'target_luas_lahan' => 'required|numeric', 
             'pilihan_intervensi' => 'nullable|string|max:255',
+            'jenis_tanaman'      => 'nullable|string|max:255',
             'tanggal_mulai'     => 'nullable|date',
             'tanggal_selesai'   => 'nullable|date|after_or_equal:tanggal_mulai',
         ]);
@@ -70,6 +71,16 @@ class ProgramApbdController extends Controller
 
         $validated = $request->validate([
             'status' => 'sometimes|string|in:Menunggu Persetujuan,Terverifikasi,Ditolak,Selesai,Aktif,Ditolak KTH',
+            'nama_program'      => 'sometimes|string|max:255',
+            'deskripsi_rencana' => 'sometimes|nullable|string',
+            'anggaran'          => 'sometimes|numeric',
+            'jumlah_bibit'      => 'sometimes|nullable|numeric',
+            'target_luas_lahan' => 'sometimes|numeric',
+            'pilihan_intervensi' => 'sometimes|nullable|string|max:255',
+            'jenis_tanaman'      => 'sometimes|nullable|string|max:255',
+            'tanggal_mulai'     => 'sometimes|nullable|date',
+            'tanggal_selesai'   => 'sometimes|nullable|date',
+            'analysis_result_zone_id' => 'sometimes|nullable|exists:analysis_result_zones,id',
             // ... (tambahkan validasi update lain jika perlu)
         ]);
 

@@ -53,7 +53,7 @@ class PetakUkurController extends Controller
 
     public function getTanaman($id): JsonResponse
     {
-        $tanaman = \App\Models\DataTanaman::with('seed.specification')->where('petak_ukur_id', $id)->get();
+        $tanaman = \App\Models\DataTanaman::with('seed.specifications')->where('petak_ukur_id', $id)->get();
         return response()->json([
             'message' => 'Daftar Tanaman PU',
             'data' => $tanaman

@@ -15,6 +15,7 @@ class ProgramApbd extends Model
         'jumlah_bibit',
         'target_luas_lahan',
         'pilihan_intervensi',
+        'jenis_tanaman',
         'tanggal_mulai',
         'tanggal_selesai',
         'status',

@@ -47,6 +47,7 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('Store User Request:', $request->all());
         try {
             $validated = $request->validate([
                 'nama_pengguna' => 'required|string|max:255|unique:users,username',
@@ -55,6 +56,7 @@ class UserController extends Controller
                 'kata_sandi' => 'required|string|min:6',
                 'peran' => 'nullable|array',
                 'peran.*' => 'string|exists:roles,name',
+                'kth_id' => 'nullable|exists:kths,id',
             ], [
                 'nama_pengguna.required' => 'Nama pengguna harus diisi',
                 'nama_pengguna.unique' => 'Nama pengguna sudah terdaftar',
@@ -71,6 +73,7 @@ class UserController extends Controller
                 'username' => $validated['nama_pengguna'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['kata_sandi']),
+                'kth_id' => $validated['kth_id'] ?? null,
             ]);
 
             $user->pegawai()->create([
@@ -169,6 +172,10 @@ class UserController extends Controller
                 $userData['password'] = Hash::make($validated['kata_sandi']);
             }
 
+            if (array_key_exists('kth_id', $validated)) {
+                $userData['kth_id'] = $validated['kth_id'];
+            }
+
             $user->update($userData);
 
             if (array_key_exists('nip', $validated)) {
@@ -243,6 +250,7 @@ class UserController extends Controller
             $validated = $request->validate([
                 'peran' => 'required|array',
                 'peran.*' => 'string|exists:roles,name',
+                'kth_id' => 'nullable|exists:kths,id',
             ], [
                 'peran.required' => 'Peran harus diisi',
                 'peran.array' => 'Peran harus berupa array',
