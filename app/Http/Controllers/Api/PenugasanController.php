@@ -475,11 +475,20 @@ class PenugasanController extends Controller
                 'sumber_dana' => $sumberDana,
                 'wilayah' => $wilayah,
                 'status' => $p->status,
-                'penyuluh' => $p->penyuluh ? ($p->penyuluh->nama_pengguna ?? $p->penyuluh->name) : '-',
+                // Kolom nama pada users adalah 'username'. Membaca nama_pengguna
+                // atau name membuat field ini selalu null.
+                'penyuluh' => $p->penyuluh
+                    ? ($p->penyuluh->username ?? $p->penyuluh->nama_pengguna ?? $p->penyuluh->name ?? '-')
+                    : '-',
                 'tanggal_penugasan' => $p->tanggal_penugasan,
                 'target_bibit' => $targetBibit,
                 'realisasi_bibit' => $realisasiBibit,
                 'jenis_kegiatan' => $p->jenis_kegiatan,
+                'periode_monitoring' => $p->periode_monitoring,
+                // Dipakai untuk mengurutkan aktivitas terbaru; tanggal_penugasan
+                // boleh kosong sehingga tidak dapat diandalkan sendirian.
+                'updated_at' => $p->updated_at,
+                'created_at' => $p->created_at,
             ];
         }
 
