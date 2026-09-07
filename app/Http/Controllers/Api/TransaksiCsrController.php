@@ -29,7 +29,7 @@ class TransaksiCsrController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        $csr = $user ? $user->csr : null;
+        $csr = ($user && ($user->role === 'csr' || $user->role === 'CSR' || $user->hasRole(['csr', 'CSR']))) ? $user->getOrCreateCsr() : ($user ? $user->csr : null);
 
         if (! $csr) {
             return response()->json([
@@ -98,3 +98,4 @@ class TransaksiCsrController extends Controller
         //
     }
 }
+

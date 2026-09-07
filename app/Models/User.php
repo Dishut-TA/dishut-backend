@@ -58,6 +58,19 @@ class User extends Authenticatable
     {
         return $this->hasOne(Csr::class);
     }
+
+    public function getOrCreateCsr()
+    {
+        if (!$this->csr) {
+            $this->csr()->create([
+                'nama_perusahaan' => 'Mitra CSR ' . $this->username,
+                'no_telepon' => '-',
+                'alamat' => '-'
+            ]);
+            $this->load('csr');
+        }
+        return $this->csr;
+    }
     
     public function pegawai()
     {

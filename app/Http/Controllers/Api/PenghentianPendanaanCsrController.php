@@ -98,11 +98,15 @@ class PenghentianPendanaanCsrController extends Controller
                 'nama_program' => $program->nama_program,
                 'status_program' => $program->status,
                 'ambang_batas_tumbuh' => $ambang,
-                'persentase_tumbuh' => $persentase,
+                'persentase_tumbuh_terakhir' => $program->persentase_tumbuh_terakhir ?? $persentase,
                 'di_bawah_ambang_batas' => $dibawahAmbang,
                 'boleh_dihentikan' => $dibawahAmbang && $adalahPendana && ! $program->sudahDihentikan(),
                 'alasan_tidak_boleh' => $this->alasanTidakBoleh($program, $evaluasi, $persentase, $ambang, $adalahPendana),
                 'evaluasi' => $evaluasi,
+                'dokumentasi' => \App\Models\DokumentasiPenugasan::whereHas('penugasan', function($q) use ($program) {
+                    $q->where('penugasanable_id', $program->id)
+                      ->where('penugasanable_type', \App\Models\ProgramCsr::class);
+                })->get(),
                 'penghentian' => $program->sudahDihentikan() ? [
                     'alasan' => $program->alasan_penghentian,
                     'dihentikan_at' => $program->dihentikan_at,
@@ -216,6 +220,12 @@ class PenghentianPendanaanCsrController extends Controller
     {
         $user = $request->user();
 
+        // Menggunakan getOrCreateCsr agar user yang register via endpoint biasa (sebagai pegawai)
+        // tapi memiliki role 'csr' bisa langsung dibuatkan profil CSR-nya.
+        if ($user && ($user->role === 'csr' || $user->role === 'CSR' || $user->hasRole(['csr', 'CSR']))) {
+            return $user->getOrCreateCsr();
+        }
+
         return $user ? $user->csr : null;
     }
 
@@ -286,3 +296,5 @@ class PenghentianPendanaanCsrController extends Controller
         return null;
     }
 }
+
+
