@@ -393,7 +393,12 @@ class PenugasanController extends Controller
     {
         $penugasans = Penugasan::with(['penyuluh', 'penugasanable'])->get();
 
-        $totalProgram = $penugasans->count();
+        // Satu program bisa punya banyak penugasan, jadi jumlah penugasan bukan
+        // jumlah program. Dihitung berdasarkan pasangan tipe + id program.
+        $programDitugaskan = $penugasans
+            ->map(fn ($p) => $p->penugasanable_type . '_' . $p->penugasanable_id)
+            ->unique();
+
         $berjalan = $penugasans->where('status', 'Berjalan')->count();
         $selesai = $penugasans->where('status', 'Selesai')->count();
         $menunggu = $penugasans->where('status', 'Menunggu Penugasan')->count();
@@ -470,8 +475,22 @@ class PenugasanController extends Controller
         $apbdBelumTugas = ProgramApbd::whereDoesntHave('penugasans')->count();
         $csrBelumTugas = ProgramCsr::whereDoesntHave('penugasans')->count();
 
-        $persentaseRealisasi = $totalTargetBibit > 0 
-            ? round(($totalRealisasiBibit / $totalTargetBibit) * 100, 2) 
+        // Rekapitulasi jumlah program per sumber dana, mencakup yang sudah
+        // ditugaskan maupun belum, dihitung per program bukan per penugasan.
+        $ditugaskanPerSumber = fn (string $kelas) => $programDitugaskan
+            ->filter(fn ($kunci) => str_starts_with($kunci, $kelas . '_'))
+            ->count();
+
+        $perSumberDana = [
+            'Donasi' => $ditugaskanPerSumber(DonationProgram::class) + $donasiBelumTugas,
+            'APBD' => $ditugaskanPerSumber(ProgramApbd::class) + $apbdBelumTugas,
+            'CSR' => $ditugaskanPerSumber(ProgramCsr::class) + $csrBelumTugas,
+        ];
+
+        $totalProgram = array_sum($perSumberDana);
+
+        $persentaseRealisasi = $totalTargetBibit > 0
+            ? round(($totalRealisasiBibit / $totalTargetBibit) * 100, 2)
             : 0;
 
         return response()->json([
@@ -485,6 +504,7 @@ class PenugasanController extends Controller
                 'total_realisasi_bibit' => $totalRealisasiBibit,
                 'persentase_realisasi' => $persentaseRealisasi,
             ],
+            'per_sumber_dana' => $perSumberDana,
             'per_wilayah' => $perWilayah,
             'programs' => $programList,
             // Titik peta diambil dari polygon_data petak ukur yang digambar penyuluh.
