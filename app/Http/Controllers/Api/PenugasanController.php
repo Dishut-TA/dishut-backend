@@ -408,6 +408,7 @@ class PenugasanController extends Controller
         $totalRealisasiBibit = 0;
         $programList = [];
         $perWilayah = [];
+        $programSudahDihitung = [];
 
         foreach ($penugasans as $p) {
             $source = $p->penugasanable;
@@ -440,21 +441,35 @@ class PenugasanController extends Controller
                 $wilayah = $source->kabupaten ?? '-';
             }
 
-            $totalTargetBibit += $targetBibit;
-            $totalRealisasiBibit += $realisasiBibit;
+            // Target dan realisasi milik program, bukan milik penugasan. Tanpa
+            // penjagaan ini, program dengan beberapa penugasan (Pelaksanaan,
+            // Monitoring, Tindak Lanjut) terhitung berulang kali.
+            $kunciProgram = $p->penugasanable_type . '_' . $p->penugasanable_id;
+            $programBaru = !in_array($kunciProgram, $programSudahDihitung, true);
 
-            // Per wilayah aggregation
-            if ($wilayah && $wilayah !== '-') {
-                if (!isset($perWilayah[$wilayah])) {
-                    $perWilayah[$wilayah] = ['target' => 0, 'realisasi' => 0, 'program' => 0];
+            if ($programBaru) {
+                $programSudahDihitung[] = $kunciProgram;
+
+                $totalTargetBibit += $targetBibit;
+                $totalRealisasiBibit += $realisasiBibit;
+
+                // Per wilayah aggregation
+                if ($wilayah && $wilayah !== '-') {
+                    if (!isset($perWilayah[$wilayah])) {
+                        $perWilayah[$wilayah] = ['target' => 0, 'realisasi' => 0, 'program' => 0];
+                    }
+                    $perWilayah[$wilayah]['target'] += $targetBibit;
+                    $perWilayah[$wilayah]['realisasi'] += $realisasiBibit;
+                    $perWilayah[$wilayah]['program'] += 1;
                 }
-                $perWilayah[$wilayah]['target'] += $targetBibit;
-                $perWilayah[$wilayah]['realisasi'] += $realisasiBibit;
-                $perWilayah[$wilayah]['program'] += 1;
             }
 
             $programList[] = [
                 'id' => $p->id,
+                // Penanda program, dipakai konsumen untuk menggabungkan baris
+                // karena daftar ini berisi satu entri per penugasan.
+                'program_key' => $p->penugasanable_type . '_' . $p->penugasanable_id,
+                'program_id' => $p->penugasanable_id,
                 'nama_program' => $namaProgram,
                 'lokasi' => $lokasi,
                 'sumber_dana' => $sumberDana,
