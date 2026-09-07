@@ -105,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('penugasan/{id}/tugaskan-monitoring', [\App\Http\Controllers\Api\PenugasanController::class, 'storeMonitoring']);
     Route::post('penugasan/{id}/hentikan', [\App\Http\Controllers\Api\PenugasanController::class, 'hentikanPenugasan']);
     Route::post('penugasan/{id}/submit-monitoring', [\App\Http\Controllers\Api\PenugasanController::class, 'submitMonitoring']);
+    Route::post('penugasan/{id}/submit-tindak-lanjut', [\App\Http\Controllers\Api\PenugasanController::class, 'submitTindakLanjut']);
     Route::get('penugasan/{id}/seeds', [\App\Http\Controllers\Api\PenugasanController::class, 'getSeeds']);
     
     // Dokumentasi

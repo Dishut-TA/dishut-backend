@@ -626,6 +626,20 @@ class PenugasanController extends Controller
         ]);
     }
 
+    public function submitTindakLanjut(Request $request, $id): JsonResponse
+    {
+        $penugasan = Penugasan::findOrFail($id);
+        
+        $penugasan->update([
+            'status' => 'Monitoring Selesai'
+        ]);
+
+        return response()->json([
+            'message' => 'Laporan tindak lanjut penyulaman berhasil dikirim',
+            'data' => $penugasan
+        ]);
+    }
+
     public function approvePelaksanaan(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
@@ -765,5 +779,6 @@ class PenugasanController extends Controller
         ], 201);
     }
 }
+
 
 
