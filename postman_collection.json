@@ -1698,12 +1698,837 @@
           }
         }
       ]
+    },
+    {
+      "name": "16. Penghentian Pendanaan CSR (PRD Feature 7)",
+      "description": "Endpoint Modul Investasi CSR untuk menghentikan pendanaan ketika hasil evaluasi menunjukkan persentase tumbuh di bawah 75%, beserta perambatannya ke Modul Pelaksanaan & Monitoring.\n\nUrutan pakai:\n1. Folder 0 - login untuk mengisi variable `token`.\n2. Folder 1 - pastikan ada baris transaksi_csrs sebagai bukti kepemilikan.\n3. Folder 2 - baca hasil evaluasi lalu hentikan pendanaan.\n4. Folder 3 - verifikasi batasan akses dan business rule.\n\nSemua request memakai bearer token dari variable `token` kecuali yang sengaja diset noauth.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{token}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "0. Auth",
+          "description": "Ambil token Sanctum. Semua endpoint penghentian pendanaan wajib login.\nKredensial default berasal dari DatabaseSeeder (user csr_bjb).",
+          "item": [
+            {
+              "name": "1. Login Mitra CSR",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Menyimpan payload.token ke collection variable `token`.\nAkun ini harus punya baris di tabel `csrs`, kalau tidak semua endpoint di bawah membalas 403.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"login\": \"csr@bjb.co.id\",\n    \"kata_sandi\": \"apasilukepo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Login berhasil', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    pm.expect(body.payload).to.have.property('token');",
+                      "});",
+                      "",
+                      "if (body.payload && body.payload.token) {",
+                      "    pm.collectionVariables.set('token', body.payload.token);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Login Mitra CSR Lain (untuk uji 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Opsional. Dipakai skenario 'bukan pendana' di folder 3.\nGanti kredensial dengan mitra CSR kedua di database Anda; token tersimpan ke variable `tokenCsrLain`.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"login\": \"csr_lain@example.com\",\n    \"kata_sandi\": \"apasilukepo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const body = pm.response.json();",
+                      "",
+                      "if (body.payload && body.payload.token) {",
+                      "    pm.collectionVariables.set('tokenCsrLain', body.payload.token);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "1. Pencatatan Pendanaan",
+          "description": "Baris transaksi_csrs adalah bukti kepemilikan program. Tanpa baris ini mitra CSR tidak bisa membuka hasil evaluasi maupun menghentikan pendanaan.",
+          "item": [
+            {
+              "name": "1. Catat Pendanaan",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/transaksi-csrs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "transaksi-csrs"
+                  ]
+                },
+                "description": "csr_id TIDAK diambil dari body, selalu dari token. Status yang diterima hanya 'Menunggu Pembayaran' atau 'Dibayar'.\nIdempoten: pemanggilan ulang untuk pasangan csr/program yang sama memperbarui baris yang ada, bukan menambah baris baru.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"program_csr_id\": 1,\n    \"nominal\": 150000000,\n    \"tanggal_pendanaan\": \"2026-09-07\",\n    \"status\": \"Dibayar\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Pendanaan tercatat', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.program_csr_id) {",
+                      "    pm.collectionVariables.set('programCsrId', body.data.program_csr_id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Catat Pendanaan Tanpa Token (harus 401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/transaksi-csrs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "transaksi-csrs"
+                  ]
+                },
+                "description": "Memastikan route store benar-benar berada di balik auth:sanctum.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"program_csr_id\": 1,\n    \"nominal\": 150000000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Ditolak tanpa autentikasi', function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2. Hasil Evaluasi & Penghentian",
+          "description": "Alur PRD Feature 7: hasil evaluasi < 75% membuka opsi penghentian pendanaan, yang lalu merambat ke modul Pelaksanaan & Monitoring.",
+          "item": [
+            {
+              "name": "1. Program CSR Saya",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/saya",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "saya"
+                  ]
+                },
+                "description": "Hanya program yang didanai akun ini (join lewat transaksi_csrs).\nMenyimpan id program pertama ke variable `programCsrId`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Daftar program milik mitra CSR', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "if (Array.isArray(body.data) && body.data.length > 0) {",
+                      "    pm.collectionVariables.set('programCsrId', body.data[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Hasil Evaluasi Program",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hasil-evaluasi",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hasil-evaluasi"
+                  ]
+                },
+                "description": "Mitra CSR hanya boleh melihat program yang ia danai. User internal (tanpa profil mitra CSR) tetap boleh membaca, tapi `boleh_dihentikan` selalu false untuk mereka.\n\n`alasan_tidak_boleh` menjelaskan kenapa tombol belum aktif: belum ada evaluasi final, persentase masih >= 75%, sudah dihentikan, atau pemanggil bukan pendana."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Hasil evaluasi terbaca', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const data = pm.response.json().data;",
+                      "",
+                      "pm.test('Ambang batas 75 persen', function () {",
+                      "    pm.expect(data.ambang_batas_tumbuh).to.eql(75);",
+                      "});",
+                      "",
+                      "pm.test('Flag penghentian konsisten dengan persentase', function () {",
+                      "    if (data.persentase_tumbuh === null) {",
+                      "        pm.expect(data.boleh_dihentikan).to.be.false;",
+                      "    } else if (data.persentase_tumbuh >= 75) {",
+                      "        pm.expect(data.boleh_dihentikan).to.be.false;",
+                      "    }",
+                      "});",
+                      "",
+                      "console.log('persentase_tumbuh:', data.persentase_tumbuh,",
+                      "            '| boleh_dihentikan:', data.boleh_dihentikan,",
+                      "            '| alasan:', data.alasan_tidak_boleh);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3. Hentikan Pendanaan",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Prasyarat: pemanggil adalah mitra CSR pendana, ada evaluasi final dengan persentase_tumbuh terisi, nilainya < 75%, dan program belum pernah dihentikan.\n\nEfek samping dalam satu transaksi DB:\n- program_csrs.status -> Dihentikan (+ audit trail)\n- transaksi_csrs 'Menunggu Pembayaran' -> Dihentikan\n- evaluasis yang masih berjalan -> Dihentikan\n- penugasans yang belum final -> Dihentikan",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Persentase tumbuh hasil evaluasi berada di bawah ambang batas 75%.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Pendanaan dihentikan', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const data = pm.response.json().data;",
+                      "",
+                      "pm.test('Status program menjadi Dihentikan', function () {",
+                      "    pm.expect(data.program.status).to.eql('Dihentikan');",
+                      "});",
+                      "",
+                      "pm.test('Audit trail terisi', function () {",
+                      "    pm.expect(data.program.alasan_penghentian).to.be.a('string');",
+                      "    pm.expect(data.program.dihentikan_at).to.not.be.null;",
+                      "    pm.expect(data.program.dihentikan_by).to.not.be.null;",
+                      "});",
+                      "",
+                      "console.log('Penugasan ikut dihentikan:', data.penugasan_dihentikan);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3. Skenario Penolakan",
+          "description": "Uji batasan akses dan business rule PRD. Sebagian request bergantung pada kondisi data, lihat deskripsi masing-masing.",
+          "item": [
+            {
+              "name": "1. Hentikan Tanpa Token (harus 401)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Endpoint berada di balik auth:sanctum.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Percobaan tanpa autentikasi.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Ditolak tanpa autentikasi', function () {",
+                      "    pm.response.to.have.status(401);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Hentikan oleh Bukan Pendana (harus 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Jalankan 'Login Mitra CSR Lain' dulu. Membuktikan mitra A tidak bisa menghentikan program milik mitra B.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenCsrLain}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Percobaan oleh mitra CSR yang tidak mendanai program ini.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Ditolak karena bukan pendana', function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3. Hentikan Tanpa Alasan (harus 422)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Alasan wajib diisi minimal 5 karakter untuk audit trail.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Validasi alasan gagal', function () {",
+                      "    pm.response.to.have.status(422);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4. Hentikan Program yang Persentasenya >= 75% (harus 422)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/1/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "1",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Ganti angka 1 pada URL dengan id program yang hasil evaluasinya >= 75% atau yang belum punya evaluasi final.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Percobaan menghentikan program yang hasil evaluasinya masih baik.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Ditolak karena tidak memenuhi syarat', function () {",
+                      "    pm.response.to.have.status(422);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "5. Hentikan Ulang (harus 409)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}/hentikan-pendanaan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}",
+                    "hentikan-pendanaan"
+                  ]
+                },
+                "description": "Jalankan setelah request '3. Hentikan Pendanaan' berhasil.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Percobaan menghentikan program yang sudah dihentikan.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Ditolak karena sudah dihentikan', function () {",
+                      "    pm.response.to.have.status(409);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6. Hentikan Monitoring CSR Secara Manual (harus 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/penugasan/{{penugasanId}}/hentikan",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "penugasan",
+                    "{{penugasanId}}",
+                    "hentikan"
+                  ]
+                },
+                "description": "PRD Business Rule 1 & 2: penyuluh maupun Staff PDAS tidak boleh menghentikan monitoring program CSR secara manual.\n\nSet variable `penugasanId` ke penugasan milik program CSR yang pendanaannya BELUM dihentikan.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"alasan\": \"Percobaan penghentian manual oleh staff/penyuluh.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Penghentian manual ditolak', function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7. Set Status Dihentikan lewat PUT Biasa (harus 422)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/program-csrs/{{programCsrId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "program-csrs",
+                    "{{programCsrId}}"
+                  ]
+                },
+                "description": "Status 'Dihentikan' hanya boleh lewat endpoint hentikan-pendanaan supaya tercatat dan merambat ke modul monitoring.\n\nGunakan program yang belum dihentikan; kalau sudah Dihentikan request ini lolos karena tidak mengubah apa pun.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"status\": \"Dihentikan\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Perubahan status langsung ditolak', function () {",
+                      "    pm.response.to.have.status(422);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
     {
       "key": "baseUrl",
       "value": "https://master.service.unikom.my.id/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenCsrLain",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "programCsrId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "penugasanId",
+      "value": "1",
       "type": "string"
     }
   ]

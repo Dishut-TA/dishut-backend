@@ -166,8 +166,18 @@ Route::get('/dashboard/kabid', [KabidPdasDashboardController::class, 'getKabidPd
 // ============================================================================
 Route::apiResource('csrs', \App\Http\Controllers\Api\CsrController::class);
 Route::apiResource('program-apbds', \App\Http\Controllers\Api\ProgramApbdController::class);
+// Penghentian Pendanaan CSR (PRD Feature 7).
+// Wajib login: kepemilikan program dicek lewat transaksi_csrs.
+// Harus didaftarkan sebelum apiResource agar 'saya' tidak tertangkap sebagai {id}.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('program-csrs/saya', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'programSaya']);
+    Route::get('program-csrs/{id}/hasil-evaluasi', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'hasilEvaluasi']);
+    Route::post('program-csrs/{id}/hentikan-pendanaan', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'hentikanPendanaan']);
+});
 Route::apiResource('program-csrs', \App\Http\Controllers\Api\ProgramCsrController::class);
-Route::apiResource('transaksi-csrs', \App\Http\Controllers\Api\TransaksiCsrController::class);
+// Pencatatan pendanaan wajib login: csr_id diambil dari user, bukan dari body.
+Route::middleware('auth:sanctum')->post('transaksi-csrs', [\App\Http\Controllers\Api\TransaksiCsrController::class, 'store']);
+Route::apiResource('transaksi-csrs', \App\Http\Controllers\Api\TransaksiCsrController::class)->except(['store']);
 Route::apiResource('laporan-danas', LaporanDanaController::class);
 Route::put('laporan-danas/{id}/status', [LaporanDanaController::class, 'updateStatus']);
 Route::apiResource('laporan-proyeks', \App\Http\Controllers\Api\LaporanProyekController::class);

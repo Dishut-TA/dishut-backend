@@ -108,6 +108,16 @@ class DatabaseSeeder extends Seeder
                 'alamat' => 'Alamat ' . $userData['username'],
                 'foto_profile' => 'default.png',
             ]);
+
+            // Profil mitra CSR. Wajib ada karena kepemilikan program di Modul
+            // Investasi CSR dibaca lewat csrs -> transaksi_csrs.
+            if ($userData['role'] === 'csr') {
+                $user->csr()->firstOrCreate([], [
+                    'nama_perusahaan' => 'PT Bank BJB',
+                    'no_telepon' => '022123456',
+                    'alamat' => 'Jl. Naripan No. 12-14, Bandung',
+                ]);
+            }
         }
 
         // 4. SEED POSITIONS (JABATAN)

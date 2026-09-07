@@ -725,6 +725,20 @@ class PenugasanController extends Controller
             return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
         }
 
+        // PRD Feature 7: khusus program CSR, status 'Dihentikan' hanya boleh dipicu
+        // oleh keputusan penghentian pendanaan di Modul Investasi CSR. Penyuluh maupun
+        // Staff PDAS tidak boleh menghentikan monitoring CSR secara manual.
+        if ($penugasan->penugasanable_type === \App\Models\ProgramCsr::class) {
+            $program = $penugasan->penugasanable;
+
+            if (!$program || $program->status !== 'Dihentikan') {
+                return response()->json([
+                    'message' => 'Monitoring program CSR tidak dapat dihentikan secara manual. '
+                        . 'Penghentian hanya terjadi bila pihak pendana menghentikan pendanaan melalui Modul Investasi CSR.',
+                ], 403);
+            }
+        }
+
         $penugasan->update([
             'status' => 'Dihentikan',
             'arahan' => $request->alasan ? trim(($penugasan->arahan ?? '') . "\n[Dihentikan] " . $request->alasan) : $penugasan->arahan,
