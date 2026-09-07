@@ -487,6 +487,8 @@ class PenugasanController extends Controller
             ],
             'per_wilayah' => $perWilayah,
             'programs' => $programList,
+            // Titik peta diambil dari polygon_data petak ukur yang digambar penyuluh.
+            'map_locations' => \App\Support\PetaPetakUkur::titik(),
         ]);
     }
 
