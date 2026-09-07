@@ -735,6 +735,57 @@ class PenugasanController extends Controller
         ]);
     }
 
+    /**
+     * POST /api/penugasan/{id}/penyulaman
+     *
+     * Mencatat realisasi penyulaman pada satu titik tanaman. Titik yang boleh
+     * disulam hanya yang kondisinya mati atau rusak.
+     */
+    public function storePenyulaman(Request $request, $id): JsonResponse
+    {
+        $penugasan = Penugasan::find($id);
+
+        if (!$penugasan) {
+            return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
+        }
+
+        $validated = $request->validate([
+            'data_tanaman_id' => 'required|exists:data_tanamans,id',
+            'status_penyulaman' => 'required|in:Belum Disulam,Sedang Disulam,Sudah Disulam',
+            'penyulaman_jumlah' => 'nullable|integer|min:0',
+            'penyulaman_tinggi' => 'nullable|numeric|min:0',
+            'penyulaman_keterangan' => 'nullable|string|max:1000',
+            'foto' => 'nullable|image|max:5120',
+        ]);
+
+        $tanaman = \App\Models\DataTanaman::findOrFail($validated['data_tanaman_id']);
+
+        if (!$tanaman->perluDisulam()) {
+            return response()->json([
+                'message' => 'Titik ini tidak perlu disulam karena tanamannya tidak berkondisi mati atau rusak.',
+            ], 422);
+        }
+
+        $fotoPath = $tanaman->penyulaman_foto;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('penyulaman', 'public');
+        }
+
+        $tanaman->update([
+            'status_penyulaman' => $validated['status_penyulaman'],
+            'penyulaman_jumlah' => $validated['penyulaman_jumlah'] ?? null,
+            'penyulaman_tinggi' => $validated['penyulaman_tinggi'] ?? null,
+            'penyulaman_keterangan' => $validated['penyulaman_keterangan'] ?? null,
+            'penyulaman_foto' => $fotoPath,
+            'penyulaman_at' => $validated['status_penyulaman'] === 'Belum Disulam' ? null : now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Data penyulaman berhasil disimpan',
+            'data' => $tanaman->fresh(),
+        ]);
+    }
+
     public function submitTindakLanjut(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
