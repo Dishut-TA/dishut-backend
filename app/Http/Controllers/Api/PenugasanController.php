@@ -441,6 +441,24 @@ class PenugasanController extends Controller
                 $wilayah = $source->kabupaten ?? '-';
             }
 
+            // Hitung realisasi tanaman aktual dari DataTanaman (Petak Ukur -> Data Tanaman)
+            $realisasiTanaman = 0;
+            $penugasanTerkait = $penugasans->where('penugasanable_type', $p->penugasanable_type)
+                                           ->where('penugasanable_id', $p->penugasanable_id)
+                                           ->where('jenis_kegiatan', 'Pelaksanaan Penanaman');
+            foreach ($penugasanTerkait as $pt) {
+                if ($pt->petakUkurs) {
+                    foreach ($pt->petakUkurs as $petak) {
+                        if ($petak->dataTanamans) {
+                            $realisasiTanaman += $petak->dataTanamans->sum('jumlah');
+                        }
+                    }
+                }
+            }
+            if ($realisasiTanaman > 0) {
+                $realisasiBibit = $realisasiTanaman;
+            }
+
             // Target dan realisasi milik program, bukan milik penugasan. Tanpa
             // penjagaan ini, program dengan beberapa penugasan (Pelaksanaan,
             // Monitoring, Tindak Lanjut) terhitung berulang kali.

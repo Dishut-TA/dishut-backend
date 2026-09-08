@@ -388,6 +388,14 @@ class PenugasanEvaluasiController extends Controller
         // PERBAIKAN: Simpan persentase_tumbuh jika ada
         if ($request->has('persentase_tumbuh')) {
             $evaluasi->persentase_tumbuh = $request->persentase_tumbuh;
+
+            // Jika persentase tumbuh >= 75%, program di modul pelaksanaan monitoring berubah statusnya menjadi 'Monitoring Selesai'
+            if ($request->persentase_tumbuh >= 75) {
+                \App\Models\Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
+                    ->where('penugasanable_id', $evaluasi->evaluable_id)
+                    ->where('jenis_kegiatan', 'Monitoring')
+                    ->update(['status' => 'Monitoring Selesai']);
+            }
         }
         
         $evaluasi->save();

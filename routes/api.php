@@ -263,3 +263,9 @@ Route::prefix('pegawais')->group(function () {
     Route::put('/{id}', [PegawaiController::class, 'update']);
     Route::post('/{id}', [PegawaiController::class, 'update']); // Sometimes FormData needs POST with _method=PUT
 });
+
+Route::middleware('auth:sanctum')->get('/dashboard-csr', [\App\Http\Controllers\Api\CsrDashboardController::class, 'index']);
+
+
+Route::middleware('auth:sanctum')->get('/dashboard-kth', [\App\Http\Controllers\Api\KthDashboardController::class, 'index']);
+
