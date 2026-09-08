@@ -884,10 +884,17 @@ class PenugasanController extends Controller
             // grafik perkembangan; tanpa ini kurva P0-P4 dimulai dari P1.
             SiklusProgram::rekamHasilPeriode($penugasan, SiklusProgram::PERIODE[0]);
 
-            $program->forceFill([
-                'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
-                'siklus_terakhir_at' => now(),
-            ])->save();
+            // Persetujuan ulang laporan penanaman tidak boleh membuka kembali
+            // siklus program yang sudah berjalan atau sudah diserahterimakan.
+            $masihDiPenanaman = SiklusProgram::normalkan($program->periode_aktif) === SiklusProgram::PERIODE[0]
+                && $program->status_siklus !== SiklusProgram::STATUS_TUNTAS;
+
+            if ($masihDiPenanaman) {
+                $program->forceFill([
+                    'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+                    'siklus_terakhir_at' => now(),
+                ])->save();
+            }
         }
 
         return response()->json([

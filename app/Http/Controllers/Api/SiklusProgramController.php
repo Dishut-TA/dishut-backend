@@ -56,6 +56,9 @@ class SiklusProgramController extends Controller
             'data' => [
                 'program_id' => $program->getKey(),
                 'program_type' => $kelas,
+                // Alias pendek supaya frontend bisa memanggil rute naikkan
+                // periode tanpa memasukkan nama kelas ber-backslash ke URL.
+                'program_alias' => array_search($kelas, SiklusProgram::TIPE_PROGRAM, true) ?: null,
                 'nama_program' => $program->nama_program ?? $program->name ?? '-',
                 'sumber_dana' => SiklusProgram::sumberDana($kelas),
                 'periode_aktif' => $periodeAktif,
