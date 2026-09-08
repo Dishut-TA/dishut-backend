@@ -59,6 +59,27 @@ class SiklusProgram
         return self::PERIODE[$indeks + 1] ?? null;
     }
 
+    /**
+     * Periode terjauh di antara beberapa nilai.
+     *
+     * Dipakai untuk menjaga periode program agar hanya bergerak maju: form
+     * penugasan mengirim periode sebagai teks bebas dan pilihannya bisa
+     * tertinggal, sehingga nilai yang lebih rendah harus diabaikan.
+     */
+    public static function palingJauh(?string ...$periode): string
+    {
+        $tertinggi = 0;
+
+        foreach ($periode as $nilai) {
+            $indeks = array_search(self::normalkan($nilai), self::PERIODE, true);
+            if ($indeks !== false && $indeks > $tertinggi) {
+                $tertinggi = $indeks;
+            }
+        }
+
+        return self::PERIODE[$tertinggi];
+    }
+
     /** Benar bila $periode adalah periode terakhir siklus. */
     public static function periodeTerakhir(?string $periode): bool
     {

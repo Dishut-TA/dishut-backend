@@ -960,13 +960,17 @@ class PenugasanController extends Controller
         // supaya hasil pengukuran nanti tercatat pada periode yang benar.
         $program = SiklusProgram::program($existingPenugasan->penugasanable_type, $existingPenugasan->penugasanable_id);
         if ($program) {
-            // Teks periode dari frontend tidak selalu berbentuk "P2"; kalau
-            // tidak terbaca, periode program dibiarkan apa adanya daripada
-            // terlanjur turun ke P0.
-            $periode = SiklusProgram::normalkan($request->periode_monitoring);
+            // Periode program hanya boleh maju. Form penugasan monitoring
+            // mengirim periode sebagai teks bebas dan pilihannya bisa tertinggal
+            // di "P1"; tanpa penjagaan ini program yang sudah di P3 akan turun
+            // kembali ke P1 dan riwayat periode berjalannya salah tempat.
+            $periode = SiklusProgram::palingJauh(
+                $program->periode_aktif,
+                SiklusProgram::normalkan($request->periode_monitoring)
+            );
 
             $program->forceFill([
-                'periode_aktif' => $periode === SiklusProgram::PERIODE[0] ? $program->periode_aktif : $periode,
+                'periode_aktif' => $periode,
                 'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
             ])->save();
         }

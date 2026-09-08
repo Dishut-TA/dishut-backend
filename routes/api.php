@@ -84,6 +84,7 @@ Route::get('/penugasan-evaluasi-perhitungan', [\App\Http\Controllers\Api\Penugas
 Route::put('/penugasan-evaluasi/{id}/faktual', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'saveFaktual']);
 Route::put('/penugasan-evaluasi/{id}/kalkulasi', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'kalkulasiEvaluasi']);
 Route::post('/penugasan-evaluasi/{id}/tindak-lanjut', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'submitTindakLanjut']);
+Route::get('/penugasan-evaluasi/{id}/siklus', [\App\Http\Controllers\Api\SiklusProgramController::class, 'showByEvaluasi']);
 Route::get('/penugasan-evaluasi-laporan-kabid', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'listLaporanKabid']);
 Route::put('/penugasan-evaluasi/{id}/sahkan', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'sahkanLaporan']);
 Route::put('/penugasan-evaluasi/{id}/revisi', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'revisiLaporan']);

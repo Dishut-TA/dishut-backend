@@ -569,10 +569,98 @@ class PenugasanEvaluasiController extends Controller
         }
         $evaluasi->save();
 
+        // Pengesahan Kabid adalah palu kelulusan satu periode, jadi di sinilah
+        // program naik kelas. Pendekatannya berbasis kejadian, bukan menunggu
+        // penjadwal setahun: begitu evaluasi memenuhi ambang batas, program
+        // langsung dilempar kembali ke antrean monitoring periode berikutnya.
+        // Penjadwal harian tetap ada sebagai jaring pengaman untuk program yang
+        // siklusnya tuntas tanpa lewat jalur pengesahan ini.
+        $hasil = $this->naikkanSetelahSah($evaluasi);
+
         return response()->json([
-            'message' => 'Laporan evaluasi berhasil disahkan!',
-            'data' => $evaluasi
+            'message' => $hasil['pesan'],
+            'periode_sebelumnya' => $hasil['periode_sebelumnya'],
+            'periode_aktif' => $hasil['periode_aktif'],
+            'status_siklus' => $hasil['status_siklus'],
+            'data' => $evaluasi,
         ]);
+    }
+
+    /**
+     * Menaikkan periode program setelah evaluasinya disahkan.
+     *
+     * Lolos sebelum P4 menaikkan periode dan mengembalikan program ke status
+     * Siap Monitoring agar muncul lagi di dashboard Staff PDAS. Lolos di P4
+     * menutup siklus. Tidak lolos menahan periode dan menandai tindak lanjut.
+     */
+    private function naikkanSetelahSah(Evaluasi $evaluasi): array
+    {
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        if (!$program) {
+            return [
+                'pesan' => 'Laporan evaluasi berhasil disahkan!',
+                'periode_sebelumnya' => null,
+                'periode_aktif' => null,
+                'status_siklus' => null,
+            ];
+        }
+
+        // Periode yang dinilai diambil dari evaluasinya sendiri supaya
+        // pengesahan laporan lama tidak menggeser periode program yang berjalan.
+        $periode = SiklusProgram::palingJauh(
+            $program->periode_aktif,
+            $evaluasi->periode_evaluasi
+        );
+        $persentase = (float) $evaluasi->persentase_tumbuh;
+
+        if ($persentase < SiklusProgram::AMBANG_BATAS_TUMBUH) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TINDAK_LANJUT,
+            ])->save();
+
+            return [
+                'pesan' => "Laporan disahkan. Persentase tumbuh {$persentase}% di bawah ambang batas "
+                    . SiklusProgram::AMBANG_BATAS_TUMBUH . '%, program tetap di '
+                    . "{$periode} dan wajib tindak lanjut penyulaman.",
+                'periode_sebelumnya' => $periode,
+                'periode_aktif' => $periode,
+                'status_siklus' => $program->status_siklus,
+            ];
+        }
+
+        if (SiklusProgram::periodeTerakhir($periode)) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TUNTAS,
+                'siklus_terakhir_at' => now(),
+            ])->save();
+
+            return [
+                'pesan' => 'Laporan disahkan. Evaluasi periode terakhir terpenuhi, '
+                    . 'program dinyatakan selesai dan diserahterimakan.',
+                'periode_sebelumnya' => $periode,
+                'periode_aktif' => $periode,
+                'status_siklus' => $program->status_siklus,
+            ];
+        }
+
+        $berikutnya = SiklusProgram::berikutnya($periode);
+
+        $program->forceFill([
+            'periode_aktif' => $berikutnya,
+            'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+            'siklus_terakhir_at' => now(),
+        ])->save();
+
+        return [
+            'pesan' => "Laporan disahkan. Program naik dari {$periode} ke {$berikutnya} "
+                . 'dan kembali masuk antrean monitoring.',
+            'periode_sebelumnya' => $periode,
+            'periode_aktif' => $berikutnya,
+            'status_siklus' => $program->status_siklus,
+        ];
     }
 
     /**

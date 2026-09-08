@@ -41,6 +41,21 @@ class SiklusProgramController extends Controller
         return $this->ringkasan($penugasan->penugasanable_type, $penugasan->penugasanable_id);
     }
 
+    /**
+     * GET /api/penugasan-evaluasi/{id}/siklus
+     * Jalur pintas untuk halaman pengesahan, yang memegang id evaluasi.
+     */
+    public function showByEvaluasi($id): JsonResponse
+    {
+        $evaluasi = \App\Models\Evaluasi::find($id);
+
+        if (!$evaluasi) {
+            return response()->json(['message' => 'Evaluasi tidak ditemukan'], 404);
+        }
+
+        return $this->ringkasan($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+    }
+
     private function ringkasan(?string $kelas, $id): JsonResponse
     {
         $program = SiklusProgram::program($kelas, $id);
@@ -62,6 +77,9 @@ class SiklusProgramController extends Controller
                 'nama_program' => $program->nama_program ?? $program->name ?? '-',
                 'sumber_dana' => SiklusProgram::sumberDana($kelas),
                 'periode_aktif' => $periodeAktif,
+                // Periode yang akan ditempati bila evaluasi berjalan lolos.
+                // Dipakai frontend untuk melabeli tombol pengesahan.
+                'periode_berikutnya' => SiklusProgram::berikutnya($periodeAktif),
                 'status_siklus' => $program->status_siklus,
                 'siklus_terakhir_at' => $program->siklus_terakhir_at,
                 'periode_terakhir' => SiklusProgram::PERIODE_TERAKHIR,
