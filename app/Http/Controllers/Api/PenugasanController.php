@@ -91,7 +91,7 @@ class PenugasanController extends Controller
                     'original_id' => $apbd->id,
                     'source_type' => ProgramApbd::class,
                     'program' => $apbd->nama_program,
-                    'lokasi' => $apbd->kth ? ($apbd->kth->desa_kelurahan . ', ' . $apbd->kth->kecamatan . ', ' . $apbd->kth->kabupaten_kota) : '-',
+                    'lokasi' => $this->gabungLokasi($apbd->kth),
                     'wilayah' => $apbd->kth ? $apbd->kth->kabupaten_kota : '-',
                     'rencanaPeriode' => 'P0',
                     'detail' => $apbd,
@@ -113,7 +113,7 @@ class PenugasanController extends Controller
                     'original_id' => $csr->id,
                     'source_type' => ProgramCsr::class,
                     'program' => $csr->nama_program,
-                    'lokasi' => $csr->kth ? ($csr->kth->desa_kelurahan . ', ' . $csr->kth->kecamatan . ', ' . $csr->kth->kabupaten_kota) : '-',
+                    'lokasi' => $this->gabungLokasi($csr->kth),
                     'wilayah' => $csr->kth ? $csr->kth->kabupaten_kota : '-',
                     'rencanaPeriode' => 'P0',
                     'detail' => $csr,
@@ -144,6 +144,22 @@ class PenugasanController extends Controller
      *                         Validasi Lokasi, yang jenis kegiatannya ditentukan sumber
      *                         data dan bukan oleh isian bebas kolom jenis_kegiatan.
      */
+    /** Menggabungkan bagian alamat KTH tanpa meninggalkan koma ganda. */
+    private function gabungLokasi($kth): string
+    {
+        if (!$kth) {
+            return '-';
+        }
+
+        $bagian = array_filter([
+            $kth->desa_kelurahan,
+            $kth->kecamatan,
+            $kth->kabupaten_kota,
+        ], fn ($v) => filled($v));
+
+        return $bagian ? implode(', ', $bagian) : '-';
+    }
+
     private function barisPenugasan(
         array $base,
         $daftarPenugasan,
@@ -182,6 +198,7 @@ class PenugasanController extends Controller
                 'batasWaktu' => $penugasan->batas_waktu,
                 'periodeMonitoring' => $penugasan->periode_monitoring,
                 'created_at' => $penugasan->created_at,
+                'updated_at' => $penugasan->updated_at,
             ]);
         }
 
