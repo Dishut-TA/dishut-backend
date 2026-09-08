@@ -40,7 +40,7 @@ class PenghentianPendanaanCsrController extends Controller
      * Daftar program CSR yang didanai oleh akun mitra CSR yang sedang login.
      * Dipakai halaman Monitoring Proyek agar mitra hanya melihat programnya sendiri.
      */
-    public function programSaya(Request $request): JsonResponse
+        public function programSaya(Request $request): JsonResponse
     {
         $csr = $this->csrMilikUser($request);
 
@@ -58,12 +58,23 @@ class PenghentianPendanaanCsrController extends Controller
             ->latest()
             ->get();
 
+        // Hitung persentase tumbuh secara dinamis jika di tabel masih null
+        $programs->each(function ($program) {
+            if ($program->persentase_tumbuh_terakhir === null) {
+                $evaluasi = $program->evaluasiFinalTerakhir();
+                if ($evaluasi && $evaluasi->persentase_tumbuh !== null) {
+                    $program->persentase_tumbuh_terakhir = (float) $evaluasi->persentase_tumbuh;
+                }
+            }
+        });
+
         return response()->json([
             'status' => 'success',
             'message' => 'Daftar program CSR yang Anda danai',
             'data' => $programs,
         ]);
     }
+
 
     /**
      * GET /api/program-csrs/{id}/hasil-evaluasi
@@ -90,6 +101,10 @@ class PenghentianPendanaanCsrController extends Controller
         $dibawahAmbang = $persentase !== null && $persentase < $ambang;
         $adalahPendana = $this->csrMilikUser($request) !== null;
 
+        // Ambil riwayat evaluasi beserta penugasannya
+        $riwayatEvaluasi = $program->evaluasis()->orderBy('id', 'asc')->get();
+
+
         return response()->json([
             'status' => 'success',
             'message' => 'Hasil evaluasi program CSR',
@@ -103,6 +118,7 @@ class PenghentianPendanaanCsrController extends Controller
                 'boleh_dihentikan' => $dibawahAmbang && $adalahPendana && ! $program->sudahDihentikan(),
                 'alasan_tidak_boleh' => $this->alasanTidakBoleh($program, $evaluasi, $persentase, $ambang, $adalahPendana),
                 'evaluasi' => $evaluasi,
+                'riwayat_evaluasi' => $riwayatEvaluasi,
                 'dokumentasi' => \App\Models\DokumentasiPenugasan::whereHas('penugasan', function($q) use ($program) {
                     $q->where('penugasanable_id', $program->id)
                       ->where('penugasanable_type', \App\Models\ProgramCsr::class);
@@ -296,5 +312,3 @@ class PenghentianPendanaanCsrController extends Controller
         return null;
     }
 }
-
-

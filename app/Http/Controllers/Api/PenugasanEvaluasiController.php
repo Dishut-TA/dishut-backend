@@ -556,7 +556,7 @@ class PenugasanEvaluasiController extends Controller
         ]);
     }
 
-    /**
+       /**
      * PUT /api/penugasan-evaluasi/{id}/sahkan
      * Pengesahan laporan evaluasi oleh Kepala Bidang PDAS
      */
@@ -577,6 +577,15 @@ class PenugasanEvaluasiController extends Controller
         // siklusnya tuntas tanpa lewat jalur pengesahan ini.
         $hasil = $this->naikkanSetelahSah($evaluasi);
 
+        // ==========================================
+        // PERBAIKAN: Update penugasan terkait agar statusnya jadi Selesai
+        // ==========================================
+        \App\Models\Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
+            ->where('penugasanable_id', $evaluasi->evaluable_id)
+            ->whereIn('status', ['Menunggu Evaluasi', 'Tindak Lanjut'])
+            ->update(['status' => 'Selesai']);
+        // ==========================================
+
         return response()->json([
             'message' => $hasil['pesan'],
             'periode_sebelumnya' => $hasil['periode_sebelumnya'],
@@ -585,6 +594,7 @@ class PenugasanEvaluasiController extends Controller
             'data' => $evaluasi,
         ]);
     }
+
 
     /**
      * Menaikkan periode program setelah evaluasinya disahkan.
