@@ -36,6 +36,12 @@ class PetakUkur extends Model
         return $this->belongsTo(Penugasan::class, 'penugasan_id');
     }
 
+    /** Riwayat pengukuran per periode siklus; kolom eval_* hanya yang terakhir. */
+    public function hasilMonitoring()
+    {
+        return $this->hasMany(HasilMonitoringPetak::class);
+    }
+
     public function dataTanamans()
     {
         return $this->hasMany(DataTanaman::class, 'petak_ukur_id');

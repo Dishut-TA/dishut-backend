@@ -9,6 +9,7 @@ use App\Models\DonationProgram;
 use App\Models\ProgramApbd;
 use App\Models\ProgramCsr;
 use App\Models\Penugasan;
+use App\Support\SiklusProgram;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -759,14 +760,34 @@ class PenugasanController extends Controller
     public function submitMonitoring(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Menunggu Evaluasi'
         ]);
 
+        // Pengiriman laporan adalah titik bekunya angka periode ini. Kondisi
+        // tanaman di data_tanamans akan terus berubah pada periode berikutnya,
+        // jadi hasilnya disalin dulu ke riwayat siklus.
+        $periode = SiklusProgram::periodePenugasan($penugasan);
+        $jumlahPetak = SiklusProgram::rekamHasilPeriode($penugasan, $periode);
+
+        if (!$penugasan->periode_monitoring) {
+            $penugasan->update(['periode_monitoring' => $periode]);
+        }
+
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_MENUNGGU_EVALUASI,
+            ])->save();
+        }
+
         return response()->json([
             'message' => 'Laporan monitoring berhasil dikirim untuk dievaluasi',
-            'data' => $penugasan
+            'periode' => $periode,
+            'petak_terekam' => $jumlahPetak,
+            'data' => $penugasan->fresh()
         ]);
     }
 
@@ -824,10 +845,23 @@ class PenugasanController extends Controller
     public function submitTindakLanjut(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Monitoring Selesai'
         ]);
+
+        // Penyulaman beres menutup siklus periode ini. Periodenya belum naik:
+        // kenaikan dilakukan penjadwal setahun kemudian, atau lewat tombol
+        // naikkan periode milik Kabid.
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program) {
+            $program->forceFill([
+                'status_siklus' => SiklusProgram::periodeTerakhir($program->periode_aktif)
+                    ? SiklusProgram::STATUS_TUNTAS
+                    : SiklusProgram::STATUS_SELESAI_MONITORING,
+                'siklus_terakhir_at' => now(),
+            ])->save();
+        }
 
         return response()->json([
             'message' => 'Laporan tindak lanjut penyulaman berhasil dikirim',
@@ -838,10 +872,23 @@ class PenugasanController extends Controller
     public function approvePelaksanaan(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Selesai'
         ]);
+
+        // Penanaman awal (P0) tuntas, program masuk antrean monitoring P1.
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program && $penugasan->jenis_kegiatan === 'Pelaksanaan Penanaman') {
+            // Kondisi tanaman saat serah terima penanaman menjadi titik awal
+            // grafik perkembangan; tanpa ini kurva P0-P4 dimulai dari P1.
+            SiklusProgram::rekamHasilPeriode($penugasan, SiklusProgram::PERIODE[0]);
+
+            $program->forceFill([
+                'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+                'siklus_terakhir_at' => now(),
+            ])->save();
+        }
 
         return response()->json([
             'message' => 'Laporan pelaksanaan berhasil disetujui',
@@ -901,6 +948,21 @@ class PenugasanController extends Controller
             'arahan' => $request->arahan,
             // 'lampiran_penugasan' dihandle jika ada upload file
         ]);
+
+        // Periode program mengikuti periode monitoring yang baru diturunkan,
+        // supaya hasil pengukuran nanti tercatat pada periode yang benar.
+        $program = SiklusProgram::program($existingPenugasan->penugasanable_type, $existingPenugasan->penugasanable_id);
+        if ($program) {
+            // Teks periode dari frontend tidak selalu berbentuk "P2"; kalau
+            // tidak terbaca, periode program dibiarkan apa adanya daripada
+            // terlanjur turun ke P0.
+            $periode = SiklusProgram::normalkan($request->periode_monitoring);
+
+            $program->forceFill([
+                'periode_aktif' => $periode === SiklusProgram::PERIODE[0] ? $program->periode_aktif : $periode,
+                'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+            ])->save();
+        }
 
         return response()->json([
             'message' => 'Penugasan monitoring berhasil dibuat.',

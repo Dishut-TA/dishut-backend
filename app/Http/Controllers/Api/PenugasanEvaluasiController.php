@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use App\Models\Penugasan;
 use App\Models\Evaluasi;
 use App\Models\EvaluasiTim;
+use App\Support\SiklusProgram;
 use Illuminate\Support\Facades\DB;
 
 class PenugasanEvaluasiController extends Controller
@@ -384,23 +385,52 @@ class PenugasanEvaluasiController extends Controller
     {
         $evaluasi = Evaluasi::findOrFail($id);
         $evaluasi->status = 'Selesai Evaluasi';
-        
+
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        // Periode yang sedang dinilai. Diambil dari evaluasinya sendiri supaya
+        // hasil lama tidak ikut terpengaruh ketika periode program sudah naik.
+        $periode = $evaluasi->periode_evaluasi
+            ? SiklusProgram::normalkan($evaluasi->periode_evaluasi)
+            : SiklusProgram::normalkan($program?->periode_aktif);
+
+        $statusSiklus = null;
+
         // PERBAIKAN: Simpan persentase_tumbuh jika ada
         if ($request->has('persentase_tumbuh')) {
-            $evaluasi->persentase_tumbuh = $request->persentase_tumbuh;
+            $persentase = (float) $request->persentase_tumbuh;
+            $evaluasi->persentase_tumbuh = $persentase;
 
-            // Jika persentase tumbuh >= 75%, program di modul pelaksanaan monitoring berubah statusnya menjadi 'Monitoring Selesai'
-            if ($request->persentase_tumbuh >= 75) {
-                \App\Models\Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
+            if ($persentase >= SiklusProgram::AMBANG_BATAS_TUMBUH) {
+                // Hanya penugasan monitoring pada periode yang dinilai yang
+                // ditutup. Sebelumnya seluruh penugasan monitoring program ikut
+                // tertutup, termasuk periode lain yang belum dievaluasi.
+                Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
                     ->where('penugasanable_id', $evaluasi->evaluable_id)
                     ->where('jenis_kegiatan', 'Monitoring')
+                    ->where(function ($query) use ($periode) {
+                        $query->whereNull('periode_monitoring')
+                            ->orWhere('periode_monitoring', 'like', "%{$periode}%");
+                    })
                     ->update(['status' => 'Monitoring Selesai']);
             }
+
+            if ($program) {
+                // Lolos di P4 berarti program tuntas dan siklusnya berhenti;
+                // lolos sebelum P4 hanya menunggu giliran tahun berikutnya.
+                $program->forceFill(['periode_aktif' => $periode])->save();
+                $statusSiklus = SiklusProgram::tutupPeriode($program, $persentase);
+            }
         }
-        
+
         $evaluasi->save();
 
-        return response()->json(['message' => 'Evaluasi berhasil dikalkulasi', 'data' => $evaluasi]);
+        return response()->json([
+            'message' => 'Evaluasi berhasil dikalkulasi',
+            'periode' => $periode,
+            'status_siklus' => $statusSiklus,
+            'data' => $evaluasi,
+        ]);
     }
 
     /**
@@ -421,12 +451,21 @@ class PenugasanEvaluasiController extends Controller
             ->where('jenis_kegiatan', 'Pelaksanaan Penanaman')
             ->first();
 
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        // Tindak lanjut milik periode yang gagal, bukan periode berikutnya:
+        // periode program tidak boleh naik sampai penyulaman beres.
+        $periode = $evaluasi->periode_evaluasi
+            ? SiklusProgram::normalkan($evaluasi->periode_evaluasi)
+            : SiklusProgram::normalkan($program?->periode_aktif);
+
         // 3. Buat penugasan baru di modul Pelaksanaan & Monitoring dengan jenis_kegiatan 'Tindak Lanjut'
         $penugasanTL = \App\Models\Penugasan::create([
             'penyuluh_id' => $pelaksanaan ? $pelaksanaan->penyuluh_id : null,
             'jenis_kegiatan' => 'Tindak Lanjut',
             'penugasanable_type' => $evaluasi->evaluable_type,
             'penugasanable_id' => $evaluasi->evaluable_id,
+            'periode_monitoring' => $periode,
             'status' => 'Ditugaskan',
             'tanggal_penugasan' => now(),
             'batas_waktu' => $request->batas_waktu,
@@ -434,8 +473,16 @@ class PenugasanEvaluasiController extends Controller
             'arahan' => "TINDAK LANJUT EVALUASI [{$request->jenis_tindak_lanjut}]: \n" . $request->arahan,
         ]);
 
+        if ($program) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TINDAK_LANJUT,
+            ])->save();
+        }
+
         return response()->json([
             'message' => 'Arahan Tindak Lanjut berhasil dibuat dan dikirim ke Penyuluh.',
+            'periode' => $periode,
             'data' => $penugasanTL
         ]);
     }

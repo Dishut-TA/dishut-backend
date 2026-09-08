@@ -43,11 +43,15 @@ class ProgramCsr extends Model
         'alasan_penghentian',
         'dihentikan_by',
         'dihentikan_at',
+        'periode_aktif',
+        'status_siklus',
+        'siklus_terakhir_at',
     ];
 
     protected $casts = [
         'persentase_tumbuh_terakhir' => 'float',
         'dihentikan_at' => 'datetime',
+        'siklus_terakhir_at' => 'datetime',
     ];
 
     public function kth()

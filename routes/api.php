@@ -108,7 +108,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('penugasan/{id}/submit-tindak-lanjut', [\App\Http\Controllers\Api\PenugasanController::class, 'submitTindakLanjut']);
     Route::post('penugasan/{id}/penyulaman', [\App\Http\Controllers\Api\PenugasanController::class, 'storePenyulaman']);
     Route::get('penugasan/{id}/seeds', [\App\Http\Controllers\Api\PenugasanController::class, 'getSeeds']);
-    
+
+    // Siklus rehabilitasi P0-P4: riwayat antar periode dan kenaikan periode.
+    // Rute penugasan dipakai halaman detail yang hanya memegang id penugasan.
+    Route::get('penugasan/{id}/siklus', [\App\Http\Controllers\Api\SiklusProgramController::class, 'showByPenugasan']);
+    Route::get('program-siklus/{tipe}/{id}', [\App\Http\Controllers\Api\SiklusProgramController::class, 'show']);
+    Route::post('program-siklus/{tipe}/{id}/naikkan', [\App\Http\Controllers\Api\SiklusProgramController::class, 'naikkanPeriode']);
+
+
     // Dokumentasi
     Route::get('penugasan/{id}/dokumentasi', [\App\Http\Controllers\Api\PenugasanController::class, 'getDokumentasi']);
     Route::post('penugasan/{id}/dokumentasi', [\App\Http\Controllers\Api\PenugasanController::class, 'storeDokumentasi']);
