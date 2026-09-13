@@ -10,6 +10,8 @@ use App\Models\DonationProgram;
 use App\Models\ProgramApbd;
 use App\Models\ProgramCsr;
 use App\Models\PetakUkur;
+use App\Models\HasilMonitoringPetak;
+use App\Support\SiklusProgram;
 
 class EvaluasiController extends Controller
 {
@@ -169,6 +171,10 @@ class EvaluasiController extends Controller
             'petaks.*.keterangan' => 'nullable|string',
         ]);
 
+        // Periode siklus yang sedang diukur. Tanpa ini hasil P2 akan menimpa P1
+        // dan riwayat perkembangan tanaman tidak bisa disusun.
+        $periode = SiklusProgram::periodePenugasan($penugasan);
+
         $totalPersentase = 0;
         $jumlahPu = 0;
 
@@ -188,6 +194,8 @@ class EvaluasiController extends Controller
                 $fotoPath = $fotoFile->store('evaluasi_petak', 'public');
             }
 
+            // Kolom eval_* dipertahankan sebagai cuplikan pengukuran terakhir
+            // supaya halaman lama tetap berjalan.
             $petak->update([
                 'eval_bibit_tumbuh' => $tumbuh,
                 'eval_persentase_tumbuh' => $persentase,
@@ -198,6 +206,24 @@ class EvaluasiController extends Controller
                 'eval_at' => now(),
             ]);
 
+            // Salinan historis per periode: inilah yang membuat P0-P4 bisa
+            // dibandingkan. Pengiriman ulang periode yang sama memperbarui
+            // baris yang sudah ada, bukan menambah duplikat.
+            HasilMonitoringPetak::updateOrCreate(
+                ['petak_ukur_id' => $petak->id, 'periode' => $periode],
+                [
+                    'penugasan_id' => $penugasan->id,
+                    'rencana_tanaman' => $rencana,
+                    'bibit_tumbuh' => $tumbuh,
+                    'persentase_tumbuh' => $persentase,
+                    'tinggi_rata' => $petakInput['tinggi_rata'] ?? null,
+                    'koordinat' => $petakInput['koordinat'],
+                    'foto' => $fotoPath,
+                    'keterangan' => $petakInput['keterangan'] ?? null,
+                    'dicatat_at' => now(),
+                ]
+            );
+
             $totalPersentase += $persentase;
             $jumlahPu++;
         }
@@ -207,10 +233,20 @@ class EvaluasiController extends Controller
         $penugasan->update([
             'status' => 'Monitoring Selesai',
             'persentase_tumbuh' => $rataPersentase,
+            // Periode dikunci pada penugasannya supaya hasil ini tetap bisa
+            // ditelusuri walau periode program sudah naik.
+            'periode_monitoring' => $penugasan->periode_monitoring ?: $periode,
         ]);
+
+        // Hasil lapangan sudah masuk; giliran Kabid menugaskan evaluasi.
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program) {
+            $program->forceFill(['status_siklus' => SiklusProgram::STATUS_MENUNGGU_EVALUASI])->save();
+        }
 
         return response()->json([
             'message' => 'Evaluasi lapangan berhasil disimpan, status diperbarui menjadi Selesai',
+            'periode' => $periode,
             'data' => $penugasan->fresh(['petakUkurs'])
         ]);
     }

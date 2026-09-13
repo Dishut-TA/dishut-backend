@@ -84,6 +84,7 @@ Route::get('/penugasan-evaluasi-perhitungan', [\App\Http\Controllers\Api\Penugas
 Route::put('/penugasan-evaluasi/{id}/faktual', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'saveFaktual']);
 Route::put('/penugasan-evaluasi/{id}/kalkulasi', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'kalkulasiEvaluasi']);
 Route::post('/penugasan-evaluasi/{id}/tindak-lanjut', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'submitTindakLanjut']);
+Route::get('/penugasan-evaluasi/{id}/siklus', [\App\Http\Controllers\Api\SiklusProgramController::class, 'showByEvaluasi']);
 Route::get('/penugasan-evaluasi-laporan-kabid', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'listLaporanKabid']);
 Route::put('/penugasan-evaluasi/{id}/sahkan', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'sahkanLaporan']);
 Route::put('/penugasan-evaluasi/{id}/revisi', [\App\Http\Controllers\Api\PenugasanEvaluasiController::class, 'revisiLaporan']);
@@ -106,8 +107,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('penugasan/{id}/hentikan', [\App\Http\Controllers\Api\PenugasanController::class, 'hentikanPenugasan']);
     Route::post('penugasan/{id}/submit-monitoring', [\App\Http\Controllers\Api\PenugasanController::class, 'submitMonitoring']);
     Route::post('penugasan/{id}/submit-tindak-lanjut', [\App\Http\Controllers\Api\PenugasanController::class, 'submitTindakLanjut']);
+    Route::post('penugasan/{id}/penyulaman', [\App\Http\Controllers\Api\PenugasanController::class, 'storePenyulaman']);
     Route::get('penugasan/{id}/seeds', [\App\Http\Controllers\Api\PenugasanController::class, 'getSeeds']);
-    
+
+    // Siklus rehabilitasi P0-P4: riwayat antar periode dan kenaikan periode.
+    // Rute penugasan dipakai halaman detail yang hanya memegang id penugasan.
+    Route::get('penugasan/{id}/siklus', [\App\Http\Controllers\Api\SiklusProgramController::class, 'showByPenugasan']);
+    Route::get('program-siklus/{tipe}/{id}', [\App\Http\Controllers\Api\SiklusProgramController::class, 'show']);
+    Route::post('program-siklus/{tipe}/{id}/naikkan', [\App\Http\Controllers\Api\SiklusProgramController::class, 'naikkanPeriode']);
+
+
     // Dokumentasi
     Route::get('penugasan/{id}/dokumentasi', [\App\Http\Controllers\Api\PenugasanController::class, 'getDokumentasi']);
     Route::post('penugasan/{id}/dokumentasi', [\App\Http\Controllers\Api\PenugasanController::class, 'storeDokumentasi']);
@@ -166,8 +175,18 @@ Route::get('/dashboard/kabid', [KabidPdasDashboardController::class, 'getKabidPd
 // ============================================================================
 Route::apiResource('csrs', \App\Http\Controllers\Api\CsrController::class);
 Route::apiResource('program-apbds', \App\Http\Controllers\Api\ProgramApbdController::class);
+// Penghentian Pendanaan CSR (PRD Feature 7).
+// Wajib login: kepemilikan program dicek lewat transaksi_csrs.
+// Harus didaftarkan sebelum apiResource agar 'saya' tidak tertangkap sebagai {id}.
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('program-csrs/saya', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'programSaya']);
+    Route::get('program-csrs/{id}/hasil-evaluasi', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'hasilEvaluasi']);
+    Route::post('program-csrs/{id}/hentikan-pendanaan', [\App\Http\Controllers\Api\PenghentianPendanaanCsrController::class, 'hentikanPendanaan']);
+});
 Route::apiResource('program-csrs', \App\Http\Controllers\Api\ProgramCsrController::class);
-Route::apiResource('transaksi-csrs', \App\Http\Controllers\Api\TransaksiCsrController::class);
+// Pencatatan pendanaan wajib login: csr_id diambil dari user, bukan dari body.
+Route::middleware('auth:sanctum')->post('transaksi-csrs', [\App\Http\Controllers\Api\TransaksiCsrController::class, 'store']);
+Route::apiResource('transaksi-csrs', \App\Http\Controllers\Api\TransaksiCsrController::class)->except(['store']);
 Route::apiResource('laporan-danas', LaporanDanaController::class);
 Route::put('laporan-danas/{id}/status', [LaporanDanaController::class, 'updateStatus']);
 Route::apiResource('laporan-proyeks', \App\Http\Controllers\Api\LaporanProyekController::class);
@@ -252,3 +271,9 @@ Route::prefix('pegawais')->group(function () {
     Route::put('/{id}', [PegawaiController::class, 'update']);
     Route::post('/{id}', [PegawaiController::class, 'update']); // Sometimes FormData needs POST with _method=PUT
 });
+
+Route::middleware('auth:sanctum')->get('/dashboard-csr', [\App\Http\Controllers\Api\CsrDashboardController::class, 'index']);
+
+
+Route::middleware('auth:sanctum')->get('/dashboard-kth', [\App\Http\Controllers\Api\KthDashboardController::class, 'index']);
+

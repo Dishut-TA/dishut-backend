@@ -38,9 +38,13 @@ class MonitoringController extends Controller
         $isDummy = false;
         $validations = FieldValidation::with('zone')->get();
         
-        $mapMarkers = [];
-        
-        if ($validations->isNotEmpty()) {
+        // Sumber utama titik peta adalah petak ukur yang digambar penyuluh
+        // (petak_ukurs.polygon_data). field_validations hanya dipakai sebagai
+        // cadangan bila belum ada satu pun petak ukur berkoordinat, dan data
+        // dummy hanya muncul bila kedua sumber kosong.
+        $mapMarkers = \App\Support\PetaPetakUkur::titik();
+
+        if (empty($mapMarkers) && $validations->isNotEmpty()) {
             foreach ($validations as $val) {
                 if ($val->titik_koordinat_gps) {
                     $coords = explode(',', $val->titik_koordinat_gps);
@@ -64,7 +68,9 @@ class MonitoringController extends Controller
                     }
                 }
             }
-        } else {
+        }
+
+        if (empty($mapMarkers)) {
             // Data dummy jika tabel kosong (agar Peta terlihat cantik saat di-demo)
             $isDummy = true;
             $mapMarkers = [

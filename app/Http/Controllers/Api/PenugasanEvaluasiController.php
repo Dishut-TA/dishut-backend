@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use App\Models\Penugasan;
 use App\Models\Evaluasi;
 use App\Models\EvaluasiTim;
+use App\Support\SiklusProgram;
 use Illuminate\Support\Facades\DB;
 
 class PenugasanEvaluasiController extends Controller
@@ -384,15 +385,52 @@ class PenugasanEvaluasiController extends Controller
     {
         $evaluasi = Evaluasi::findOrFail($id);
         $evaluasi->status = 'Selesai Evaluasi';
-        
+
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        // Periode yang sedang dinilai. Diambil dari evaluasinya sendiri supaya
+        // hasil lama tidak ikut terpengaruh ketika periode program sudah naik.
+        $periode = $evaluasi->periode_evaluasi
+            ? SiklusProgram::normalkan($evaluasi->periode_evaluasi)
+            : SiklusProgram::normalkan($program?->periode_aktif);
+
+        $statusSiklus = null;
+
         // PERBAIKAN: Simpan persentase_tumbuh jika ada
         if ($request->has('persentase_tumbuh')) {
-            $evaluasi->persentase_tumbuh = $request->persentase_tumbuh;
+            $persentase = (float) $request->persentase_tumbuh;
+            $evaluasi->persentase_tumbuh = $persentase;
+
+            if ($persentase >= SiklusProgram::AMBANG_BATAS_TUMBUH) {
+                // Hanya penugasan monitoring pada periode yang dinilai yang
+                // ditutup. Sebelumnya seluruh penugasan monitoring program ikut
+                // tertutup, termasuk periode lain yang belum dievaluasi.
+                Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
+                    ->where('penugasanable_id', $evaluasi->evaluable_id)
+                    ->where('jenis_kegiatan', 'Monitoring')
+                    ->where(function ($query) use ($periode) {
+                        $query->whereNull('periode_monitoring')
+                            ->orWhere('periode_monitoring', 'like', "%{$periode}%");
+                    })
+                    ->update(['status' => 'Monitoring Selesai']);
+            }
+
+            if ($program) {
+                // Lolos di P4 berarti program tuntas dan siklusnya berhenti;
+                // lolos sebelum P4 hanya menunggu giliran tahun berikutnya.
+                $program->forceFill(['periode_aktif' => $periode])->save();
+                $statusSiklus = SiklusProgram::tutupPeriode($program, $persentase);
+            }
         }
-        
+
         $evaluasi->save();
 
-        return response()->json(['message' => 'Evaluasi berhasil dikalkulasi', 'data' => $evaluasi]);
+        return response()->json([
+            'message' => 'Evaluasi berhasil dikalkulasi',
+            'periode' => $periode,
+            'status_siklus' => $statusSiklus,
+            'data' => $evaluasi,
+        ]);
     }
 
     /**
@@ -413,12 +451,21 @@ class PenugasanEvaluasiController extends Controller
             ->where('jenis_kegiatan', 'Pelaksanaan Penanaman')
             ->first();
 
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        // Tindak lanjut milik periode yang gagal, bukan periode berikutnya:
+        // periode program tidak boleh naik sampai penyulaman beres.
+        $periode = $evaluasi->periode_evaluasi
+            ? SiklusProgram::normalkan($evaluasi->periode_evaluasi)
+            : SiklusProgram::normalkan($program?->periode_aktif);
+
         // 3. Buat penugasan baru di modul Pelaksanaan & Monitoring dengan jenis_kegiatan 'Tindak Lanjut'
         $penugasanTL = \App\Models\Penugasan::create([
             'penyuluh_id' => $pelaksanaan ? $pelaksanaan->penyuluh_id : null,
             'jenis_kegiatan' => 'Tindak Lanjut',
             'penugasanable_type' => $evaluasi->evaluable_type,
             'penugasanable_id' => $evaluasi->evaluable_id,
+            'periode_monitoring' => $periode,
             'status' => 'Ditugaskan',
             'tanggal_penugasan' => now(),
             'batas_waktu' => $request->batas_waktu,
@@ -426,8 +473,16 @@ class PenugasanEvaluasiController extends Controller
             'arahan' => "TINDAK LANJUT EVALUASI [{$request->jenis_tindak_lanjut}]: \n" . $request->arahan,
         ]);
 
+        if ($program) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TINDAK_LANJUT,
+            ])->save();
+        }
+
         return response()->json([
             'message' => 'Arahan Tindak Lanjut berhasil dibuat dan dikirim ke Penyuluh.',
+            'periode' => $periode,
             'data' => $penugasanTL
         ]);
     }
@@ -501,7 +556,7 @@ class PenugasanEvaluasiController extends Controller
         ]);
     }
 
-    /**
+       /**
      * PUT /api/penugasan-evaluasi/{id}/sahkan
      * Pengesahan laporan evaluasi oleh Kepala Bidang PDAS
      */
@@ -514,10 +569,108 @@ class PenugasanEvaluasiController extends Controller
         }
         $evaluasi->save();
 
+        // Pengesahan Kabid adalah palu kelulusan satu periode, jadi di sinilah
+        // program naik kelas. Pendekatannya berbasis kejadian, bukan menunggu
+        // penjadwal setahun: begitu evaluasi memenuhi ambang batas, program
+        // langsung dilempar kembali ke antrean monitoring periode berikutnya.
+        // Penjadwal harian tetap ada sebagai jaring pengaman untuk program yang
+        // siklusnya tuntas tanpa lewat jalur pengesahan ini.
+        $hasil = $this->naikkanSetelahSah($evaluasi);
+
+        // ==========================================
+        // PERBAIKAN: Update penugasan terkait agar statusnya jadi Selesai
+        // ==========================================
+        \App\Models\Penugasan::where('penugasanable_type', $evaluasi->evaluable_type)
+            ->where('penugasanable_id', $evaluasi->evaluable_id)
+            ->whereIn('status', ['Menunggu Evaluasi', 'Tindak Lanjut'])
+            ->update(['status' => 'Selesai']);
+        // ==========================================
+
         return response()->json([
-            'message' => 'Laporan evaluasi berhasil disahkan!',
-            'data' => $evaluasi
+            'message' => $hasil['pesan'],
+            'periode_sebelumnya' => $hasil['periode_sebelumnya'],
+            'periode_aktif' => $hasil['periode_aktif'],
+            'status_siklus' => $hasil['status_siklus'],
+            'data' => $evaluasi,
         ]);
+    }
+
+
+    /**
+     * Menaikkan periode program setelah evaluasinya disahkan.
+     *
+     * Lolos sebelum P4 menaikkan periode dan mengembalikan program ke status
+     * Siap Monitoring agar muncul lagi di dashboard Staff PDAS. Lolos di P4
+     * menutup siklus. Tidak lolos menahan periode dan menandai tindak lanjut.
+     */
+    private function naikkanSetelahSah(Evaluasi $evaluasi): array
+    {
+        $program = SiklusProgram::program($evaluasi->evaluable_type, $evaluasi->evaluable_id);
+
+        if (!$program) {
+            return [
+                'pesan' => 'Laporan evaluasi berhasil disahkan!',
+                'periode_sebelumnya' => null,
+                'periode_aktif' => null,
+                'status_siklus' => null,
+            ];
+        }
+
+        // Periode yang dinilai diambil dari evaluasinya sendiri supaya
+        // pengesahan laporan lama tidak menggeser periode program yang berjalan.
+        $periode = SiklusProgram::palingJauh(
+            $program->periode_aktif,
+            $evaluasi->periode_evaluasi
+        );
+        $persentase = (float) $evaluasi->persentase_tumbuh;
+
+        if ($persentase < SiklusProgram::AMBANG_BATAS_TUMBUH) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TINDAK_LANJUT,
+            ])->save();
+
+            return [
+                'pesan' => "Laporan disahkan. Persentase tumbuh {$persentase}% di bawah ambang batas "
+                    . SiklusProgram::AMBANG_BATAS_TUMBUH . '%, program tetap di '
+                    . "{$periode} dan wajib tindak lanjut penyulaman.",
+                'periode_sebelumnya' => $periode,
+                'periode_aktif' => $periode,
+                'status_siklus' => $program->status_siklus,
+            ];
+        }
+
+        if (SiklusProgram::periodeTerakhir($periode)) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_TUNTAS,
+                'siklus_terakhir_at' => now(),
+            ])->save();
+
+            return [
+                'pesan' => 'Laporan disahkan. Evaluasi periode terakhir terpenuhi, '
+                    . 'program dinyatakan selesai dan diserahterimakan.',
+                'periode_sebelumnya' => $periode,
+                'periode_aktif' => $periode,
+                'status_siklus' => $program->status_siklus,
+            ];
+        }
+
+        $berikutnya = SiklusProgram::berikutnya($periode);
+
+        $program->forceFill([
+            'periode_aktif' => $berikutnya,
+            'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+            'siklus_terakhir_at' => now(),
+        ])->save();
+
+        return [
+            'pesan' => "Laporan disahkan. Program naik dari {$periode} ke {$berikutnya} "
+                . 'dan kembali masuk antrean monitoring.',
+            'periode_sebelumnya' => $periode,
+            'periode_aktif' => $berikutnya,
+            'status_siklus' => $program->status_siklus,
+        ];
     }
 
     /**

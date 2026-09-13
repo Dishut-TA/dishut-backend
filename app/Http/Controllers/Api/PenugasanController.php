@@ -9,142 +9,201 @@ use App\Models\DonationProgram;
 use App\Models\ProgramApbd;
 use App\Models\ProgramCsr;
 use App\Models\Penugasan;
+use App\Support\SiklusProgram;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class PenugasanController extends Controller
 {
     /**
-     * Menampilkan daftar semua program yang siap ditugaskan
-     * Menggabungkan data dari Validasi Lokasi (CPI) dan Pelaksanaan Penanaman
+     * Daftar penugasan untuk menu Monitoring Program Rehabilitasi.
+     *
+     * Satu program bisa punya banyak penugasan (Pelaksanaan Penanaman, lalu
+     * Monitoring P1, P2, sampai Tindak Lanjut). Karena itu penugasan dikelompokkan,
+     * bukan di-keyBy: keyBy hanya menyimpan satu penugasan per program sehingga
+     * riwayat periode monitoring hilang dan jenis kegiatan yang terbaca acak.
+     *
+     * Program yang belum punya penugasan tetap muncul satu baris berstatus
+     * 'Menunggu Penugasan'.
      */
     public function index(Request $request): JsonResponse
     {
-        $penugasans = Penugasan::with('penyuluh')->get()->keyBy(function($item) {
-            return $item->penugasanable_type . '_' . $item->penugasanable_id;
-        });
+        $penugasans = Penugasan::with('penyuluh')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->penugasanable_type . '_' . $item->penugasanable_id;
+            });
 
         $data = [];
 
         // 1. Data Validasi Lokasi (dari AnalysisResultZone)
         $zones = AnalysisResultZone::with('fieldValidations')->get();
         foreach ($zones as $zone) {
-            $key = AnalysisResultZone::class . '_' . $zone->id;
-            $penugasan = $penugasans->get($key);
-            
-            $data[] = [
-                'id' => $zone->id,
-                'source_type' => AnalysisResultZone::class,
-                'program' => 'Analisis Lahan Kritis - ' . $zone->desa,
-                'lokasi' => $zone->desa . ', ' . $zone->kecamatan . ', ' . $zone->kabupaten,
-                'jenisKegiatan' => 'Validasi Lokasi',
-                'wilayah' => $zone->kabupaten,
-                'rencanaPeriode' => '-',
-                'penyuluh' => $penugasan && $penugasan->penyuluh ? $penugasan->penyuluh->username : '-',
-                'penyuluh_id' => $penugasan ? $penugasan->penyuluh_id : null,
-                'penugasan_id' => $penugasan ? $penugasan->id : null,
-                'status' => $penugasan ? $penugasan->status : 'Menunggu Penugasan',
-                'tanggalPenugasan' => $penugasan ? $penugasan->tanggal_penugasan : '-',
-                'created_at' => $penugasan ? $penugasan->created_at : $zone->created_at,
-                'detail' => $zone // embed detail data
-            ];
+            $data = array_merge($data, $this->barisPenugasan(
+                [
+                    'id' => $zone->id,
+                    'original_id' => $zone->id,
+                    'source_type' => AnalysisResultZone::class,
+                    'program' => 'Analisis Lahan Kritis - ' . $zone->desa,
+                    'lokasi' => $zone->desa . ', ' . $zone->kecamatan . ', ' . $zone->kabupaten,
+                    'wilayah' => $zone->kabupaten,
+                    'rencanaPeriode' => '-',
+                    'detail' => $zone,
+                ],
+                $penugasans->get(AnalysisResultZone::class . '_' . $zone->id),
+                'Validasi Lokasi',
+                $zone->created_at,
+                true
+            ));
         }
 
         // 2. Data Pelaksanaan Lapangan (Donasi)
         // Hanya ambil yang sudah diverifikasi Kabid (status = 'Aktif')
         $donations = DonationProgram::with(['kth', 'analysisResultZone', 'seeds'])->where('status', 'Aktif')->get();
         foreach ($donations as $don) {
-            $key = DonationProgram::class . '_' . $don->id;
-            $penugasan = $penugasans->get($key);
-            
             $year = $don->created_at ? $don->created_at->format('Y') : date('Y');
-            $formattedId = 'P-DNS-' . $year . '-' . str_pad($don->id, 3, '0', STR_PAD_LEFT);
 
-            $data[] = [
-                'id' => $formattedId,
-                'original_id' => $don->id,
-                'source_type' => DonationProgram::class,
-                'program' => $don->name,
-                'lokasi' => $don->location,
-                'jenisKegiatan' => $penugasan ? $penugasan->jenis_kegiatan : 'Pelaksanaan Penanaman',
-                'wilayah' => $don->analysisResultZone ? $don->analysisResultZone->kabupaten : '-',
-                'rencanaPeriode' => 'P0',
-                'penyuluh' => $penugasan && $penugasan->penyuluh ? $penugasan->penyuluh->username : '-',
-                'penyuluh_id' => $penugasan ? $penugasan->penyuluh_id : null,
-                'penugasan_id' => $penugasan ? $penugasan->id : null,
-                'status' => $penugasan ? $penugasan->status : 'Menunggu Penugasan',
-                'tanggalPenugasan' => $penugasan ? $penugasan->tanggal_penugasan : '-',
-                'created_at' => $penugasan ? $penugasan->created_at : $don->created_at,
-                'detail' => $don
-            ];
+            $data = array_merge($data, $this->barisPenugasan(
+                [
+                    'id' => 'P-DNS-' . $year . '-' . str_pad($don->id, 3, '0', STR_PAD_LEFT),
+                    'original_id' => $don->id,
+                    'source_type' => DonationProgram::class,
+                    'program' => $don->name,
+                    'lokasi' => $don->location,
+                    'wilayah' => $don->analysisResultZone ? $don->analysisResultZone->kabupaten : '-',
+                    'rencanaPeriode' => 'P0',
+                    'detail' => $don,
+                ],
+                $penugasans->get(DonationProgram::class . '_' . $don->id),
+                'Pelaksanaan Penanaman',
+                $don->created_at
+            ));
         }
 
         // 3. Data Pelaksanaan Lapangan (APBD)
         $apbds = ProgramApbd::with(['kth', 'analysisResultZone'])->get();
         foreach ($apbds as $apbd) {
-            $key = ProgramApbd::class . '_' . $apbd->id;
-            $penugasan = $penugasans->get($key);
-            
-            $lokasi = $apbd->kth ? ($apbd->kth->desa_kelurahan . ', ' . $apbd->kth->kecamatan . ', ' . $apbd->kth->kabupaten_kota) : '-';
-            $wilayah = $apbd->kth ? $apbd->kth->kabupaten_kota : '-';
-
             $year = $apbd->created_at ? $apbd->created_at->format('Y') : date('Y');
-            $formattedId = 'P-ABD-' . $year . '-' . str_pad($apbd->id, 3, '0', STR_PAD_LEFT);
 
-            $data[] = [
-                'id' => $formattedId,
-                'original_id' => $apbd->id,
-                'source_type' => ProgramApbd::class,
-                'program' => $apbd->nama_program,
-                'lokasi' => $lokasi,
-                'jenisKegiatan' => $penugasan ? $penugasan->jenis_kegiatan : 'Pelaksanaan Penanaman',
-                'wilayah' => $wilayah,
-                'rencanaPeriode' => 'P0',
-                'penyuluh' => $penugasan && $penugasan->penyuluh ? $penugasan->penyuluh->username : '-',
-                'penyuluh_id' => $penugasan ? $penugasan->penyuluh_id : null,
-                'penugasan_id' => $penugasan ? $penugasan->id : null,
-                'status' => $penugasan ? $penugasan->status : 'Menunggu Penugasan',
-                'tanggalPenugasan' => $penugasan ? $penugasan->tanggal_penugasan : '-',
-                'created_at' => $penugasan ? $penugasan->created_at : $apbd->created_at,
-                'detail' => $apbd
-            ];
+            $data = array_merge($data, $this->barisPenugasan(
+                [
+                    'id' => 'P-ABD-' . $year . '-' . str_pad($apbd->id, 3, '0', STR_PAD_LEFT),
+                    'original_id' => $apbd->id,
+                    'source_type' => ProgramApbd::class,
+                    'program' => $apbd->nama_program,
+                    'lokasi' => $this->gabungLokasi($apbd->kth),
+                    'wilayah' => $apbd->kth ? $apbd->kth->kabupaten_kota : '-',
+                    'rencanaPeriode' => 'P0',
+                    'detail' => $apbd,
+                ],
+                $penugasans->get(ProgramApbd::class . '_' . $apbd->id),
+                'Pelaksanaan Penanaman',
+                $apbd->created_at
+            ));
         }
 
         // 4. Data Pelaksanaan Lapangan (CSR)
         $csrs = ProgramCsr::with(['kth', 'analysisResultZone'])->get();
         foreach ($csrs as $csr) {
-            $key = ProgramCsr::class . '_' . $csr->id;
-            $penugasan = $penugasans->get($key);
-            
-            $lokasi = $csr->kth ? ($csr->kth->desa_kelurahan . ', ' . $csr->kth->kecamatan . ', ' . $csr->kth->kabupaten_kota) : '-';
-            $wilayah = $csr->kth ? $csr->kth->kabupaten_kota : '-';
-
             $year = $csr->created_at ? $csr->created_at->format('Y') : date('Y');
-            $formattedId = 'P-CSR-' . $year . '-' . str_pad($csr->id, 3, '0', STR_PAD_LEFT);
 
-            $data[] = [
-                'id' => $formattedId,
-                'original_id' => $csr->id,
-                'source_type' => ProgramCsr::class,
-                'program' => $csr->nama_program,
-                'lokasi' => $lokasi,
-                'jenisKegiatan' => $penugasan ? $penugasan->jenis_kegiatan : 'Pelaksanaan Penanaman',
-                'wilayah' => $wilayah,
-                'rencanaPeriode' => 'P0',
-                'penyuluh' => $penugasan && $penugasan->penyuluh ? $penugasan->penyuluh->username : '-',
-                'penyuluh_id' => $penugasan ? $penugasan->penyuluh_id : null,
-                'penugasan_id' => $penugasan ? $penugasan->id : null,
-                'status' => $penugasan ? $penugasan->status : 'Menunggu Penugasan',
-                'tanggalPenugasan' => $penugasan ? $penugasan->tanggal_penugasan : '-',
-                'created_at' => $penugasan ? $penugasan->created_at : $csr->created_at,
-                'detail' => $csr
-            ];
+            $data = array_merge($data, $this->barisPenugasan(
+                [
+                    'id' => 'P-CSR-' . $year . '-' . str_pad($csr->id, 3, '0', STR_PAD_LEFT),
+                    'original_id' => $csr->id,
+                    'source_type' => ProgramCsr::class,
+                    'program' => $csr->nama_program,
+                    'lokasi' => $this->gabungLokasi($csr->kth),
+                    'wilayah' => $csr->kth ? $csr->kth->kabupaten_kota : '-',
+                    'rencanaPeriode' => 'P0',
+                    'detail' => $csr,
+                ],
+                $penugasans->get(ProgramCsr::class . '_' . $csr->id),
+                'Pelaksanaan Penanaman',
+                $csr->created_at
+            ));
         }
 
         return response()->json([
             'message' => 'Berhasil mengambil daftar penugasan',
             'data' => $data
         ]);
+    }
+
+    /**
+     * Membentuk baris daftar penugasan untuk satu program.
+     *
+     * Mengembalikan satu baris per penugasan, atau satu baris 'Menunggu Penugasan'
+     * bila program belum pernah ditugaskan.
+     *
+     * @param array $base Kolom yang sama untuk semua baris program ini.
+     * @param \Illuminate\Support\Collection|null $daftarPenugasan Penugasan milik program, urut id.
+     * @param string $jenisDefault Jenis kegiatan yang ditampilkan bila belum ada penugasan.
+     * @param mixed $createdAtFallback Tanggal program, dipakai bila belum ada penugasan.
+     * @param bool $kunciJenis Paksa semua baris memakai $jenisDefault. Dipakai sumber
+     *                         Validasi Lokasi, yang jenis kegiatannya ditentukan sumber
+     *                         data dan bukan oleh isian bebas kolom jenis_kegiatan.
+     */
+    /** Menggabungkan bagian alamat KTH tanpa meninggalkan koma ganda. */
+    private function gabungLokasi($kth): string
+    {
+        if (!$kth) {
+            return '-';
+        }
+
+        $bagian = array_filter([
+            $kth->desa_kelurahan,
+            $kth->kecamatan,
+            $kth->kabupaten_kota,
+        ], fn ($v) => filled($v));
+
+        return $bagian ? implode(', ', $bagian) : '-';
+    }
+
+    private function barisPenugasan(
+        array $base,
+        $daftarPenugasan,
+        string $jenisDefault,
+        $createdAtFallback,
+        bool $kunciJenis = false
+    ): array {
+        $kunciProgram = $base['source_type'] . '_' . $base['original_id'];
+
+        if (!$daftarPenugasan || $daftarPenugasan->isEmpty()) {
+            return [array_merge($base, [
+                'row_key' => $kunciProgram . '_belum',
+                'jenisKegiatan' => $jenisDefault,
+                'penyuluh' => '-',
+                'penyuluh_id' => null,
+                'penugasan_id' => null,
+                'status' => 'Menunggu Penugasan',
+                'tanggalPenugasan' => '-',
+                'batasWaktu' => null,
+                'periodeMonitoring' => null,
+                'created_at' => $createdAtFallback,
+            ])];
+        }
+
+        $rows = [];
+
+        foreach ($daftarPenugasan as $penugasan) {
+            $rows[] = array_merge($base, [
+                'row_key' => $kunciProgram . '_' . $penugasan->id,
+                'jenisKegiatan' => $kunciJenis ? $jenisDefault : $penugasan->jenis_kegiatan,
+                'penyuluh' => $penugasan->penyuluh ? $penugasan->penyuluh->username : '-',
+                'penyuluh_id' => $penugasan->penyuluh_id,
+                'penugasan_id' => $penugasan->id,
+                'status' => $penugasan->status,
+                'tanggalPenugasan' => $penugasan->tanggal_penugasan,
+                'batasWaktu' => $penugasan->batas_waktu,
+                'periodeMonitoring' => $penugasan->periode_monitoring,
+                'created_at' => $penugasan->created_at,
+                'updated_at' => $penugasan->updated_at,
+            ]);
+        }
+
+        return $rows;
     }
 
     /**
@@ -352,7 +411,12 @@ class PenugasanController extends Controller
     {
         $penugasans = Penugasan::with(['penyuluh', 'penugasanable'])->get();
 
-        $totalProgram = $penugasans->count();
+        // Satu program bisa punya banyak penugasan, jadi jumlah penugasan bukan
+        // jumlah program. Dihitung berdasarkan pasangan tipe + id program.
+        $programDitugaskan = $penugasans
+            ->map(fn ($p) => $p->penugasanable_type . '_' . $p->penugasanable_id)
+            ->unique();
+
         $berjalan = $penugasans->where('status', 'Berjalan')->count();
         $selesai = $penugasans->where('status', 'Selesai')->count();
         $menunggu = $penugasans->where('status', 'Menunggu Penugasan')->count();
@@ -362,6 +426,7 @@ class PenugasanController extends Controller
         $totalRealisasiBibit = 0;
         $programList = [];
         $perWilayah = [];
+        $programSudahDihitung = [];
 
         foreach ($penugasans as $p) {
             $source = $p->penugasanable;
@@ -394,31 +459,72 @@ class PenugasanController extends Controller
                 $wilayah = $source->kabupaten ?? '-';
             }
 
-            $totalTargetBibit += $targetBibit;
-            $totalRealisasiBibit += $realisasiBibit;
-
-            // Per wilayah aggregation
-            if ($wilayah && $wilayah !== '-') {
-                if (!isset($perWilayah[$wilayah])) {
-                    $perWilayah[$wilayah] = ['target' => 0, 'realisasi' => 0, 'program' => 0];
+            // Hitung realisasi tanaman aktual dari DataTanaman (Petak Ukur -> Data Tanaman)
+            $realisasiTanaman = 0;
+            $penugasanTerkait = $penugasans->where('penugasanable_type', $p->penugasanable_type)
+                                           ->where('penugasanable_id', $p->penugasanable_id)
+                                           ->where('jenis_kegiatan', 'Pelaksanaan Penanaman');
+            foreach ($penugasanTerkait as $pt) {
+                if ($pt->petakUkurs) {
+                    foreach ($pt->petakUkurs as $petak) {
+                        if ($petak->dataTanamans) {
+                            $realisasiTanaman += $petak->dataTanamans->sum('jumlah');
+                        }
+                    }
                 }
-                $perWilayah[$wilayah]['target'] += $targetBibit;
-                $perWilayah[$wilayah]['realisasi'] += $realisasiBibit;
-                $perWilayah[$wilayah]['program'] += 1;
+            }
+            if ($realisasiTanaman > 0) {
+                $realisasiBibit = $realisasiTanaman;
+            }
+
+            // Target dan realisasi milik program, bukan milik penugasan. Tanpa
+            // penjagaan ini, program dengan beberapa penugasan (Pelaksanaan,
+            // Monitoring, Tindak Lanjut) terhitung berulang kali.
+            $kunciProgram = $p->penugasanable_type . '_' . $p->penugasanable_id;
+            $programBaru = !in_array($kunciProgram, $programSudahDihitung, true);
+
+            if ($programBaru) {
+                $programSudahDihitung[] = $kunciProgram;
+
+                $totalTargetBibit += $targetBibit;
+                $totalRealisasiBibit += $realisasiBibit;
+
+                // Per wilayah aggregation
+                if ($wilayah && $wilayah !== '-') {
+                    if (!isset($perWilayah[$wilayah])) {
+                        $perWilayah[$wilayah] = ['target' => 0, 'realisasi' => 0, 'program' => 0];
+                    }
+                    $perWilayah[$wilayah]['target'] += $targetBibit;
+                    $perWilayah[$wilayah]['realisasi'] += $realisasiBibit;
+                    $perWilayah[$wilayah]['program'] += 1;
+                }
             }
 
             $programList[] = [
                 'id' => $p->id,
+                // Penanda program, dipakai konsumen untuk menggabungkan baris
+                // karena daftar ini berisi satu entri per penugasan.
+                'program_key' => $p->penugasanable_type . '_' . $p->penugasanable_id,
+                'program_id' => $p->penugasanable_id,
                 'nama_program' => $namaProgram,
                 'lokasi' => $lokasi,
                 'sumber_dana' => $sumberDana,
                 'wilayah' => $wilayah,
                 'status' => $p->status,
-                'penyuluh' => $p->penyuluh ? ($p->penyuluh->nama_pengguna ?? $p->penyuluh->name) : '-',
+                // Kolom nama pada users adalah 'username'. Membaca nama_pengguna
+                // atau name membuat field ini selalu null.
+                'penyuluh' => $p->penyuluh
+                    ? ($p->penyuluh->username ?? $p->penyuluh->nama_pengguna ?? $p->penyuluh->name ?? '-')
+                    : '-',
                 'tanggal_penugasan' => $p->tanggal_penugasan,
                 'target_bibit' => $targetBibit,
                 'realisasi_bibit' => $realisasiBibit,
                 'jenis_kegiatan' => $p->jenis_kegiatan,
+                'periode_monitoring' => $p->periode_monitoring,
+                // Dipakai untuk mengurutkan aktivitas terbaru; tanggal_penugasan
+                // boleh kosong sehingga tidak dapat diandalkan sendirian.
+                'updated_at' => $p->updated_at,
+                'created_at' => $p->created_at,
             ];
         }
 
@@ -429,8 +535,22 @@ class PenugasanController extends Controller
         $apbdBelumTugas = ProgramApbd::whereDoesntHave('penugasans')->count();
         $csrBelumTugas = ProgramCsr::whereDoesntHave('penugasans')->count();
 
-        $persentaseRealisasi = $totalTargetBibit > 0 
-            ? round(($totalRealisasiBibit / $totalTargetBibit) * 100, 2) 
+        // Rekapitulasi jumlah program per sumber dana, mencakup yang sudah
+        // ditugaskan maupun belum, dihitung per program bukan per penugasan.
+        $ditugaskanPerSumber = fn (string $kelas) => $programDitugaskan
+            ->filter(fn ($kunci) => str_starts_with($kunci, $kelas . '_'))
+            ->count();
+
+        $perSumberDana = [
+            'Donasi' => $ditugaskanPerSumber(DonationProgram::class) + $donasiBelumTugas,
+            'APBD' => $ditugaskanPerSumber(ProgramApbd::class) + $apbdBelumTugas,
+            'CSR' => $ditugaskanPerSumber(ProgramCsr::class) + $csrBelumTugas,
+        ];
+
+        $totalProgram = array_sum($perSumberDana);
+
+        $persentaseRealisasi = $totalTargetBibit > 0
+            ? round(($totalRealisasiBibit / $totalTargetBibit) * 100, 2)
             : 0;
 
         return response()->json([
@@ -444,8 +564,11 @@ class PenugasanController extends Controller
                 'total_realisasi_bibit' => $totalRealisasiBibit,
                 'persentase_realisasi' => $persentaseRealisasi,
             ],
+            'per_sumber_dana' => $perSumberDana,
             'per_wilayah' => $perWilayah,
             'programs' => $programList,
+            // Titik peta diambil dari polygon_data petak ukur yang digambar penyuluh.
+            'map_locations' => \App\Support\PetaPetakUkur::titik(),
         ]);
     }
 
@@ -503,20 +626,42 @@ class PenugasanController extends Controller
             return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
         }
 
-        // Jika ini adalah penugasan Monitoring atau Tindak Lanjut, Petak Ukurnya 
+        // Jika ini adalah penugasan Monitoring atau Tindak Lanjut, Petak Ukurnya
         // berada di penugasan Pelaksanaan Penanaman. Kita perlu menyalinnya ke response.
         if (in_array($penugasan->jenis_kegiatan, ['Monitoring', 'Tindak Lanjut']) && $penugasan->petakUkurs->isEmpty()) {
-            $pelaksanaan = Penugasan::with(['petakUkurs.dataTanamans', 'penyuluh'])
+            $pelaksanaan = Penugasan::with(['petakUkurs.dataTanamans', 'penyuluh', 'dokumentasi'])
                 ->where('penugasanable_type', $penugasan->penugasanable_type)
                 ->where('penugasanable_id', $penugasan->penugasanable_id)
                 ->where('jenis_kegiatan', 'Pelaksanaan Penanaman')
                 ->first();
-                
+
             if ($pelaksanaan && $pelaksanaan->petakUkurs) {
                 // Attach as an attribute so it gets serialized
                 $penugasan->setRelation('petakUkurs', $pelaksanaan->petakUkurs);
                 $penugasan->setAttribute('pelaksanaan_penanaman', $pelaksanaan);
             }
+
+            // Dokumentasi lapangan diunggah pada penugasan Pelaksanaan Penanaman,
+            // bukan pada penugasan Monitoring. Tanpa penurunan ini detail page
+            // Monitoring selalu menampilkan dokumentasi kosong.
+            if ($pelaksanaan && $penugasan->dokumentasi->isEmpty()) {
+                $penugasan->setRelation('dokumentasi', $pelaksanaan->dokumentasi);
+            }
+        }
+
+        // Seluruh dokumentasi program lintas penugasan, supaya halaman yang ingin
+        // menampilkan riwayat foto lengkap tidak perlu menebak penugasan mana
+        // yang menyimpannya.
+        if ($penugasan->penugasanable_type && $penugasan->penugasanable_id) {
+            $dokumentasiProgram = \App\Models\DokumentasiPenugasan::with('penugasan:id,jenis_kegiatan,periode_monitoring')
+                ->whereHas('penugasan', function ($query) use ($penugasan) {
+                    $query->where('penugasanable_type', $penugasan->penugasanable_type)
+                        ->where('penugasanable_id', $penugasan->penugasanable_id);
+                })
+                ->orderBy('created_at')
+                ->get();
+
+            $penugasan->setAttribute('dokumentasi_program', $dokumentasiProgram);
         }
 
         // Ambil riwayat monitoring
@@ -615,24 +760,108 @@ class PenugasanController extends Controller
     public function submitMonitoring(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Menunggu Evaluasi'
         ]);
 
+        // Pengiriman laporan adalah titik bekunya angka periode ini. Kondisi
+        // tanaman di data_tanamans akan terus berubah pada periode berikutnya,
+        // jadi hasilnya disalin dulu ke riwayat siklus.
+        $periode = SiklusProgram::periodePenugasan($penugasan);
+        $jumlahPetak = SiklusProgram::rekamHasilPeriode($penugasan, $periode);
+
+        if (!$penugasan->periode_monitoring) {
+            $penugasan->update(['periode_monitoring' => $periode]);
+        }
+
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program) {
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_MENUNGGU_EVALUASI,
+            ])->save();
+        }
+
         return response()->json([
             'message' => 'Laporan monitoring berhasil dikirim untuk dievaluasi',
-            'data' => $penugasan
+            'periode' => $periode,
+            'petak_terekam' => $jumlahPetak,
+            'data' => $penugasan->fresh()
+        ]);
+    }
+
+    /**
+     * POST /api/penugasan/{id}/penyulaman
+     *
+     * Mencatat realisasi penyulaman pada satu titik tanaman. Titik yang boleh
+     * disulam hanya yang kondisinya mati atau rusak.
+     */
+    public function storePenyulaman(Request $request, $id): JsonResponse
+    {
+        $penugasan = Penugasan::find($id);
+
+        if (!$penugasan) {
+            return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
+        }
+
+        $validated = $request->validate([
+            'data_tanaman_id' => 'required|exists:data_tanamans,id',
+            'status_penyulaman' => 'required|in:Belum Disulam,Sedang Disulam,Sudah Disulam',
+            'penyulaman_jumlah' => 'nullable|integer|min:0',
+            'penyulaman_tinggi' => 'nullable|numeric|min:0',
+            'penyulaman_keterangan' => 'nullable|string|max:1000',
+            'foto' => 'nullable|image|max:5120',
+        ]);
+
+        $tanaman = \App\Models\DataTanaman::findOrFail($validated['data_tanaman_id']);
+
+        if (!$tanaman->perluDisulam()) {
+            return response()->json([
+                'message' => 'Titik ini tidak perlu disulam karena tanamannya tidak berkondisi mati atau rusak.',
+            ], 422);
+        }
+
+        $fotoPath = $tanaman->penyulaman_foto;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('penyulaman', 'public');
+        }
+
+        $tanaman->update([
+            'status_penyulaman' => $validated['status_penyulaman'],
+            'penyulaman_jumlah' => $validated['penyulaman_jumlah'] ?? null,
+            'penyulaman_tinggi' => $validated['penyulaman_tinggi'] ?? null,
+            'penyulaman_keterangan' => $validated['penyulaman_keterangan'] ?? null,
+            'penyulaman_foto' => $fotoPath,
+            'penyulaman_at' => $validated['status_penyulaman'] === 'Belum Disulam' ? null : now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Data penyulaman berhasil disimpan',
+            'data' => $tanaman->fresh(),
         ]);
     }
 
     public function submitTindakLanjut(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Monitoring Selesai'
         ]);
+
+        // Penyulaman beres menutup siklus periode ini. Periodenya belum naik:
+        // kenaikan dilakukan penjadwal setahun kemudian, atau lewat tombol
+        // naikkan periode milik Kabid.
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program) {
+            $program->forceFill([
+                'status_siklus' => SiklusProgram::periodeTerakhir($program->periode_aktif)
+                    ? SiklusProgram::STATUS_TUNTAS
+                    : SiklusProgram::STATUS_SELESAI_MONITORING,
+                'siklus_terakhir_at' => now(),
+            ])->save();
+        }
 
         return response()->json([
             'message' => 'Laporan tindak lanjut penyulaman berhasil dikirim',
@@ -643,10 +872,30 @@ class PenugasanController extends Controller
     public function approvePelaksanaan(Request $request, $id): JsonResponse
     {
         $penugasan = Penugasan::findOrFail($id);
-        
+
         $penugasan->update([
             'status' => 'Selesai'
         ]);
+
+        // Penanaman awal (P0) tuntas, program masuk antrean monitoring P1.
+        $program = SiklusProgram::program($penugasan->penugasanable_type, $penugasan->penugasanable_id);
+        if ($program && $penugasan->jenis_kegiatan === 'Pelaksanaan Penanaman') {
+            // Kondisi tanaman saat serah terima penanaman menjadi titik awal
+            // grafik perkembangan; tanpa ini kurva P0-P4 dimulai dari P1.
+            SiklusProgram::rekamHasilPeriode($penugasan, SiklusProgram::PERIODE[0]);
+
+            // Persetujuan ulang laporan penanaman tidak boleh membuka kembali
+            // siklus program yang sudah berjalan atau sudah diserahterimakan.
+            $masihDiPenanaman = SiklusProgram::normalkan($program->periode_aktif) === SiklusProgram::PERIODE[0]
+                && $program->status_siklus !== SiklusProgram::STATUS_TUNTAS;
+
+            if ($masihDiPenanaman) {
+                $program->forceFill([
+                    'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+                    'siklus_terakhir_at' => now(),
+                ])->save();
+            }
+        }
 
         return response()->json([
             'message' => 'Laporan pelaksanaan berhasil disetujui',
@@ -707,6 +956,25 @@ class PenugasanController extends Controller
             // 'lampiran_penugasan' dihandle jika ada upload file
         ]);
 
+        // Periode program mengikuti periode monitoring yang baru diturunkan,
+        // supaya hasil pengukuran nanti tercatat pada periode yang benar.
+        $program = SiklusProgram::program($existingPenugasan->penugasanable_type, $existingPenugasan->penugasanable_id);
+        if ($program) {
+            // Periode program hanya boleh maju. Form penugasan monitoring
+            // mengirim periode sebagai teks bebas dan pilihannya bisa tertinggal
+            // di "P1"; tanpa penjagaan ini program yang sudah di P3 akan turun
+            // kembali ke P1 dan riwayat periode berjalannya salah tempat.
+            $periode = SiklusProgram::palingJauh(
+                $program->periode_aktif,
+                SiklusProgram::normalkan($request->periode_monitoring)
+            );
+
+            $program->forceFill([
+                'periode_aktif' => $periode,
+                'status_siklus' => SiklusProgram::STATUS_SIAP_MONITORING,
+            ])->save();
+        }
+
         return response()->json([
             'message' => 'Penugasan monitoring berhasil dibuat.',
             'data' => $penugasan
@@ -725,6 +993,20 @@ class PenugasanController extends Controller
             return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
         }
 
+        // PRD Feature 7: khusus program CSR, status 'Dihentikan' hanya boleh dipicu
+        // oleh keputusan penghentian pendanaan di Modul Investasi CSR. Penyuluh maupun
+        // Staff PDAS tidak boleh menghentikan monitoring CSR secara manual.
+        if ($penugasan->penugasanable_type === \App\Models\ProgramCsr::class) {
+            $program = $penugasan->penugasanable;
+
+            if (!$program || $program->status !== 'Dihentikan') {
+                return response()->json([
+                    'message' => 'Monitoring program CSR tidak dapat dihentikan secara manual. '
+                        . 'Penghentian hanya terjadi bila pihak pendana menghentikan pendanaan melalui Modul Investasi CSR.',
+                ], 403);
+            }
+        }
+
         $penugasan->update([
             'status' => 'Dihentikan',
             'arahan' => $request->alasan ? trim(($penugasan->arahan ?? '') . "\n[Dihentikan] " . $request->alasan) : $penugasan->arahan,
@@ -736,9 +1018,54 @@ class PenugasanController extends Controller
         ]);
     }
 
-    public function getDokumentasi($id): JsonResponse
+    /**
+     * GET /api/penugasan/{id}/dokumentasi
+     *
+     * Query string 'scope=program' mengembalikan seluruh dokumentasi program
+     * lintas penugasan. Tanpa itu, dokumentasi milik penugasan ini saja yang
+     * dikembalikan, dengan penurunan dari penugasan Pelaksanaan Penanaman bila
+     * penugasan Monitoring/Tindak Lanjut belum punya dokumentasi sendiri.
+     */
+    public function getDokumentasi(Request $request, $id): JsonResponse
     {
-        $dokumentasi = \App\Models\DokumentasiPenugasan::where('penugasan_id', $id)->get();
+        $penugasan = Penugasan::find($id);
+
+        if (!$penugasan) {
+            return response()->json(['message' => 'Penugasan tidak ditemukan'], 404);
+        }
+
+        $milikProgram = \App\Models\DokumentasiPenugasan::with('penugasan:id,jenis_kegiatan,periode_monitoring')
+            ->whereHas('penugasan', function ($query) use ($penugasan) {
+                $query->where('penugasanable_type', $penugasan->penugasanable_type)
+                    ->where('penugasanable_id', $penugasan->penugasanable_id);
+            })
+            ->orderBy('created_at');
+
+        if ($request->query('scope') === 'program') {
+            return response()->json([
+                'message' => 'Seluruh dokumentasi program',
+                'data' => $milikProgram->get()
+            ]);
+        }
+
+        $dokumentasi = \App\Models\DokumentasiPenugasan::where('penugasan_id', $id)
+            ->orderBy('created_at')
+            ->get();
+
+        // Dokumentasi lapangan tersimpan pada penugasan Pelaksanaan Penanaman.
+        if ($dokumentasi->isEmpty() && in_array($penugasan->jenis_kegiatan, ['Monitoring', 'Tindak Lanjut'])) {
+            $pelaksanaan = Penugasan::where('penugasanable_type', $penugasan->penugasanable_type)
+                ->where('penugasanable_id', $penugasan->penugasanable_id)
+                ->where('jenis_kegiatan', 'Pelaksanaan Penanaman')
+                ->first();
+
+            if ($pelaksanaan) {
+                $dokumentasi = \App\Models\DokumentasiPenugasan::where('penugasan_id', $pelaksanaan->id)
+                    ->orderBy('created_at')
+                    ->get();
+            }
+        }
+
         return response()->json([
             'message' => 'Daftar Dokumentasi Penugasan',
             'data' => $dokumentasi

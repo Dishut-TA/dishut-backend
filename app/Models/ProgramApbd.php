@@ -19,6 +19,13 @@ class ProgramApbd extends Model
         'tanggal_mulai',
         'tanggal_selesai',
         'status',
+        'periode_aktif',
+        'status_siklus',
+        'siklus_terakhir_at',
+    ];
+
+    protected $casts = [
+        'siklus_terakhir_at' => 'datetime',
     ];
 
     public function kth()

@@ -72,7 +72,17 @@ class ProgramCsrController extends Controller
     public function update(Request $request, string $id)
     {
         $programCsr = ProgramCsr::findOrFail($id);
-        
+
+        // PRD Feature 7: status 'Dihentikan' hanya boleh diset lewat endpoint
+        // penghentian pendanaan agar penghentiannya tercatat dan merambat ke
+        // modul Pelaksanaan & Monitoring.
+        if ($request->input('status') === 'Dihentikan' && $programCsr->status !== 'Dihentikan') {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Status 'Dihentikan' tidak dapat diset langsung. Gunakan endpoint POST /api/program-csrs/{id}/hentikan-pendanaan.",
+            ], 422);
+        }
+
         $validated = $request->validate([
             'status' => 'sometimes|string',
             'tanggapan_perusahaan' => 'nullable|string',
