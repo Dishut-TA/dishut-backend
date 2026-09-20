@@ -217,6 +217,7 @@ class DatabaseSeeder extends Seeder
             SeedSeeder::class,
             InterventionTypeSeeder::class,
             InterventionRecommendationSeeder::class,
+            PlantRecommendationRuleSeeder::class,
         ]);
     }
 }

@@ -57,8 +57,10 @@ Route::apiResource('rekomendasi-intervensis', InterventionRecommendationControll
 // Modul Analisis CPI & Rekomendasi Intervensi
 // ============================================================================
 Route::post('projects/upload', [\App\Http\Controllers\AnalysisProjectController::class, 'upload']);
+Route::post('projects/{id}/reanalyze', [\App\Http\Controllers\AnalysisProjectController::class, 'reanalyze']);
 Route::get('projects', [\App\Http\Controllers\AnalysisProjectController::class, 'index']);
 Route::get('projects/{id}', [\App\Http\Controllers\AnalysisProjectController::class, 'show']);
+Route::get('projects/{id}/edit-data', [\App\Http\Controllers\AnalysisProjectController::class, 'editData']);
 Route::get('projects/{id}/result', [\App\Http\Controllers\AnalysisProjectController::class, 'result']);
 Route::get('projects/{id}/table', [\App\Http\Controllers\AnalysisProjectController::class, 'table']);
 Route::get('projects/{id}/map', [\App\Http\Controllers\AnalysisProjectController::class, 'map']);

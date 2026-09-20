@@ -10,7 +10,7 @@ class AnalysisResultResource extends JsonResource
     public function toArray($request)
     {
         // Ambil data zona dari database Laravel yang sudah berisi KTH & CDK beserta validasi lapangan dan data desa
-        $zones = AnalysisResultZone::with(['fieldValidations', 'village'])->where('result_id', $this->id)->get();
+        $zones = AnalysisResultZone::with(['fieldValidations', 'village', 'plantRecommendationRule'])->where('result_id', $this->id)->get();
 
         // Buat pratinjau tabel (maksimal 5 baris) dari database yang sudah ada KTH-nya
         $pratinjauTabel = $zones->isNotEmpty()
@@ -26,6 +26,14 @@ class AnalysisResultResource extends JsonResource
                     "skor_cpi_rata2"        => $z->skor_cpi,
                     "luas_ha"                => $z->luas_ha, 
                     "rekomendasi_intervensi"=> $z->rekomendasi_intervensi,
+                    "rekomendasi_tanaman"   => $z->rekomendasi_tanaman ?? [],
+                    "rekomendasi_tanaman_alasan" => $z->rekomendasi_tanaman_alasan,
+                    "rekomendasi_tanaman_rule" => $z->plantRecommendationRule ? [
+                        "code" => $z->plantRecommendationRule->code,
+                        "wilayah" => $z->plantRecommendationRule->region_name,
+                        "kategori" => $z->plantRecommendationRule->category,
+                        "fungsi_rhl" => $z->plantRecommendationRule->rhl_function,
+                    ] : null,
                     "cdk"                   => $z->cdk,
                     "nama_kelompok"         => $z->nama_kelompok,
                     "ketua_kelompok"        => $z->ketua_kelompok,

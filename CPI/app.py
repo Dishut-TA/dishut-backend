@@ -13,12 +13,15 @@ from typing import Any, Optional
 
 import geopandas as gpd
 import pandas as pd
+import rasterio
 import requests
 import yaml
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+from rasterio.warp import transform_bounds
+from shapely.geometry import box
 
 from cpi_engine.engine import CPIAHPEngine
 from cpi_engine.intervention import apply_intervention_rules
@@ -28,6 +31,7 @@ UPLOADS_DIR = Path(os.getenv("CRITICAL_LAND_UPLOADS_DIR", BASE_DIR / "uploads"))
 OUTPUTS_DIR = Path(os.getenv("CRITICAL_LAND_OUTPUTS_DIR", BASE_DIR / "outputs"))
 CONFIG_PATH = Path(os.getenv("CRITICAL_LAND_CONFIG", BASE_DIR / "config" / "rules.yaml"))
 PUBLIC_BASE_URL = os.getenv("CRITICAL_LAND_PUBLIC_BASE_URL", "").rstrip("/")
+SPATIAL_MIN_OVERLAP_RATIO = float(os.getenv("CRITICAL_LAND_MIN_OVERLAP_RATIO", "0.05"))
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,20 +85,262 @@ def _save_upload(upload: UploadFile, target_dir: Path, logical_name: str) -> Pat
 
 def _resolve_spatial_path(path: Path, logical_name: str) -> Path:
     suffix = path.suffix.lower()
-    if suffix == ".zip":
-        extract_dir = path.parent / f"{path.stem}_extracted"
-        extract_dir.mkdir(parents=True, exist_ok=True)
+    if suffix != ".zip":
+        return path
+
+    extract_dir = path.parent / f"{path.stem}_extracted"
+    if extract_dir.exists():
+        shutil.rmtree(extract_dir, ignore_errors=True)
+    extract_dir.mkdir(parents=True, exist_ok=True)
+
+    # Jangan gunakan extractall langsung. Selain lebih aman dari ZIP path traversal,
+    # validasi ini memastikan file hasil ekstrak benar-benar berada di folder job.
+    try:
         with zipfile.ZipFile(path) as zf:
+            root = extract_dir.resolve()
+            for member in zf.infolist():
+                member_path = (extract_dir / member.filename).resolve()
+                try:
+                    member_path.relative_to(root)
+                except ValueError as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "INVALID_SPATIAL_ARCHIVE",
+                            "message": f"{logical_name}: ZIP mengandung path yang tidak aman: {member.filename}.",
+                        },
+                    ) from exc
             zf.extractall(extract_dir)
-        candidates = list(extract_dir.rglob("*"))
-        # Prefer shapefile for vector uploads, then GeoPackage/GeoJSON, then raster.
-        priority = [".shp", ".gpkg", ".geojson", ".json", ".tif", ".tiff"]
-        for ext in priority:
-            matches = [p for p in candidates if p.is_file() and p.suffix.lower() == ext]
-            if matches:
-                return matches[0]
-        raise HTTPException(status_code=400, detail=f"ZIP {path.name} tidak berisi file spasial yang didukung untuk {logical_name}.")
-    return path
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INVALID_SPATIAL_ARCHIVE",
+                "message": f"{logical_name}: file {path.name} bukan ZIP yang valid.",
+            },
+        ) from exc
+
+    candidates = list(extract_dir.rglob("*"))
+    # Prefer shapefile for vector uploads, then GeoPackage/GeoJSON, then raster.
+    priority = [".shp", ".gpkg", ".geojson", ".json", ".tif", ".tiff"]
+    for ext in priority:
+        matches = sorted(p for p in candidates if p.is_file() and p.suffix.lower() == ext)
+        if not matches:
+            continue
+
+        selected = matches[0]
+        if ext == ".shp":
+            sibling_suffixes = {
+                p.suffix.lower()
+                for p in selected.parent.iterdir()
+                if p.is_file() and p.stem.lower() == selected.stem.lower()
+            }
+            required = {".shp", ".shx", ".dbf", ".prj"}
+            missing = sorted(required - sibling_suffixes)
+            if missing:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "INVALID_SHAPEFILE_PACKAGE",
+                        "message": (
+                            f"{logical_name}: paket SHP {selected.stem} tidak lengkap. "
+                            f"File wajib yang belum ada: {', '.join(missing)}. "
+                            "ZIP minimal harus berisi .shp, .shx, .dbf, dan .prj dengan nama dasar yang sama."
+                        ),
+                    },
+                )
+        return selected
+
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "code": "INVALID_SPATIAL_ARCHIVE",
+            "message": f"ZIP {path.name} tidak berisi file spasial yang didukung untuk {logical_name}.",
+        },
+    )
+
+
+
+def _spatial_footprint(path: Path, logical_name: str, target_crs: str) -> tuple[Any, str]:
+    """Return layer footprint in target_crs plus the source CRS string.
+
+    CRS is mandatory here. A shapefile without .prj or a GeoTIFF without CRS
+    cannot be safely aligned and is rejected before CPI processing starts.
+    """
+    suffix = path.suffix.lower()
+
+    try:
+        if suffix in {".tif", ".tiff"}:
+            with rasterio.open(path) as src:
+                if src.crs is None:
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "code": "SPATIAL_ALIGNMENT_ERROR",
+                            "message": f"{logical_name}: CRS/koordinat tidak ditemukan pada file {path.name}.",
+                        },
+                    )
+                bounds = transform_bounds(src.crs, target_crs, *src.bounds, densify_pts=21)
+                return box(*bounds), str(src.crs)
+
+        if suffix in {".shp", ".geojson", ".json", ".gpkg"}:
+            gdf = gpd.read_file(path)
+            if gdf.empty or gdf.geometry.dropna().empty:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "SPATIAL_ALIGNMENT_ERROR",
+                        "message": f"{logical_name}: file {path.name} tidak memiliki geometri yang dapat divalidasi.",
+                    },
+                )
+            if gdf.crs is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "SPATIAL_ALIGNMENT_ERROR",
+                        "message": f"{logical_name}: CRS tidak ditemukan pada file {path.name}. Untuk SHP pastikan .prj ikut berada di ZIP.",
+                    },
+                )
+
+            source_crs = str(gdf.crs)
+            gdf = gdf[gdf.geometry.notnull() & ~gdf.geometry.is_empty].to_crs(target_crs)
+            if gdf.empty:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "code": "SPATIAL_ALIGNMENT_ERROR",
+                        "message": f"{logical_name}: geometri file {path.name} kosong setelah reproyeksi.",
+                    },
+                )
+            geom = gdf.geometry.union_all() if hasattr(gdf.geometry, "union_all") else gdf.geometry.unary_union
+            return geom, source_crs
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SPATIAL_ALIGNMENT_ERROR",
+                "message": f"{logical_name}: gagal membaca metadata spasial {path.name}: {exc}",
+            },
+        ) from exc
+
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "code": "SPATIAL_ALIGNMENT_ERROR",
+            "message": f"{logical_name}: format spasial {path.suffix} tidak didukung untuk validasi koordinat.",
+        },
+    )
+
+
+def _validate_spatial_alignment(
+    *,
+    dem_path: Path,
+    landcover_path: Path,
+    rainfall_path: Path,
+    soil_path: Path,
+    das_path: Path,
+    admin_path: Path | None,
+    target_crs: str,
+) -> dict[str, Any]:
+    """Reject layers whose coordinates/extents do not describe the same location.
+
+    CRS equality is intentionally *not* required. Layers in different CRS are
+    reprojected to target_crs for comparison. What matters is geographic overlap.
+    """
+    aoi_geom, aoi_source_crs = _spatial_footprint(das_path, "DAS", target_crs)
+    if aoi_geom.is_empty:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "SPATIAL_ALIGNMENT_ERROR", "message": "DAS memiliki geometri/bounds kosong."},
+        )
+    if not aoi_geom.is_valid:
+        try:
+            repaired = aoi_geom.buffer(0)
+            if not repaired.is_empty and repaired.is_valid:
+                aoi_geom = repaired
+        except Exception:
+            pass
+    if not aoi_geom.is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "SPATIAL_ALIGNMENT_ERROR", "message": "DAS memiliki geometri yang tidak valid dan tidak dapat diperbaiki."},
+        )
+
+    aoi_area = float(aoi_geom.area)
+    if aoi_area <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "SPATIAL_ALIGNMENT_ERROR", "message": "DAS memiliki luas nol sehingga koordinat tidak dapat divalidasi."},
+        )
+
+    mandatory = {
+        "DEM": dem_path,
+        "Tutupan Lahan": landcover_path,
+        "Curah Hujan": rainfall_path,
+        "Jenis Tanah": soil_path,
+    }
+    metadata: dict[str, Any] = {
+        "target_crs": target_crs,
+        "minimum_overlap_ratio": SPATIAL_MIN_OVERLAP_RATIO,
+        "DAS": {"source_crs": aoi_source_crs, "path": str(das_path)},
+        "layers": {},
+    }
+    problems: list[str] = []
+    common_geom = aoi_geom
+
+    for label, path in mandatory.items():
+        footprint, source_crs = _spatial_footprint(path, label, target_crs)
+        intersection = aoi_geom.intersection(footprint)
+        overlap_ratio = 0.0 if intersection.is_empty else float(intersection.area / aoi_area)
+        metadata["layers"][label] = {
+            "path": str(path),
+            "source_crs": source_crs,
+            "overlap_with_das_ratio": round(overlap_ratio, 6),
+        }
+
+        if intersection.is_empty or overlap_ratio < SPATIAL_MIN_OVERLAP_RATIO:
+            problems.append(
+                f"{label} hanya overlap {overlap_ratio * 100:.2f}% dengan DAS "
+                f"(minimum {SPATIAL_MIN_OVERLAP_RATIO * 100:.0f}%)."
+            )
+        common_geom = common_geom.intersection(footprint)
+
+    common_ratio = 0.0 if common_geom.is_empty else float(common_geom.area / aoi_area)
+    metadata["common_overlap_ratio"] = round(common_ratio, 6)
+    if common_geom.is_empty or common_ratio < SPATIAL_MIN_OVERLAP_RATIO:
+        problems.append(
+            f"Irisan bersama DEM, tutupan lahan, curah hujan, jenis tanah, dan DAS hanya {common_ratio * 100:.2f}%."
+        )
+
+    if admin_path:
+        admin_geom, admin_source_crs = _spatial_footprint(admin_path, "Batas Wilayah", target_crs)
+        admin_intersection = aoi_geom.intersection(admin_geom)
+        admin_ratio = 0.0 if admin_intersection.is_empty else float(admin_intersection.area / aoi_area)
+        metadata["layers"]["Batas Wilayah"] = {
+            "path": str(admin_path),
+            "source_crs": admin_source_crs,
+            "overlap_with_das_ratio": round(admin_ratio, 6),
+        }
+        if admin_intersection.is_empty or admin_ratio < SPATIAL_MIN_OVERLAP_RATIO:
+            problems.append(
+                f"Batas Wilayah hanya overlap {admin_ratio * 100:.2f}% dengan DAS "
+                f"(minimum {SPATIAL_MIN_OVERLAP_RATIO * 100:.0f}%)."
+            )
+
+    if problems:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "SPATIAL_ALIGNMENT_ERROR",
+                "message": "Koordinat/extent layer tidak konsisten. " + " ".join(problems),
+                "diagnostics": metadata,
+            },
+        )
+
+    metadata["status"] = "valid"
+    return metadata
 
 
 def _load_cfg_copy(job_dir: Path, ahp_matrix: str | list[list[float]] | None, rules_api_url: str | None) -> Path:
@@ -249,6 +495,18 @@ def _run_engine(
     das_path = _resolve_spatial_path(Path(das_path), "das")
     admin_path = _resolve_spatial_path(Path(admin_path), "admin") if admin_path else None
 
+    base_cfg = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    target_crs = str(base_cfg.get("project", {}).get("target_crs", "EPSG:32748"))
+    spatial_validation = _validate_spatial_alignment(
+        dem_path=dem_path,
+        landcover_path=landcover_path,
+        rainfall_path=rainfall_path,
+        soil_path=soil_path,
+        das_path=das_path,
+        admin_path=admin_path,
+        target_crs=target_crs,
+    )
+
     cfg_path = _load_cfg_copy(job_upload_dir, ahp_matrix, rules_api_url)
     zone_path = _fetch_zones(zone_api_url, job_upload_dir) if zone_api_url else None
     selected_admin_path = zone_path or admin_path
@@ -278,6 +536,7 @@ def _run_engine(
         table_rows = json.loads(table_path.read_text(encoding="utf-8"))
 
     payload = _result_payload(job_id, result, table_rows)
+    payload.setdefault("diagnostics", {})["spatial_validation"] = spatial_validation
     (out_dir / "response.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return payload
 

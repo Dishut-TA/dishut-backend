@@ -25,6 +25,9 @@ class AnalysisResultZone extends Model
         'alasan_skor',
         'riwayat_intervensi',
         'rekomendasi_intervensi',
+        'plant_recommendation_rule_id',
+        'rekomendasi_tanaman',
+        'rekomendasi_tanaman_alasan',
         'cdk',
         'nama_kelompok',
         'ketua_kelompok',
@@ -36,28 +39,28 @@ class AnalysisResultZone extends Model
     ];
 
     protected $casts = [
-        'skor_cpi'       => 'float',
-        'luas_ha'        => 'float',
+        'skor_cpi' => 'float',
+        'luas_ha' => 'float',
         'score_landcover' => 'float',
         'score_rainfall' => 'float',
-        'score_soil'     => 'float',
-        'score_slope'    => 'float',
-        'slope_percent'  => 'float',
+        'score_soil' => 'float',
+        'score_slope' => 'float',
+        'slope_percent' => 'float',
+        'rekomendasi_tanaman' => 'array',
     ];
 
-    /**
-     * Relasi ke result induk.
-     */
+    protected $appends = ['titik_koordinat'];
+
     public function result(): BelongsTo
     {
         return $this->belongsTo(AnalysisResult::class, 'result_id');
     }
 
-    protected $appends = ['titik_koordinat'];
+    public function plantRecommendationRule(): BelongsTo
+    {
+        return $this->belongsTo(PlantRecommendationRule::class, 'plant_recommendation_rule_id');
+    }
 
-    /**
-     * Accessor untuk mendapatkan titik koordinat dari tabel village.
-     */
     public function getTitikKoordinatAttribute(): ?string
     {
         if ($this->relationLoaded('village') && $this->village && $this->village->latitude && $this->village->longitude) {
@@ -66,17 +69,11 @@ class AnalysisResultZone extends Model
         return null;
     }
 
-    /**
-     * Relasi ke data validasi lapangan penyuluh.
-     */
     public function fieldValidations(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(FieldValidation::class, 'zone_id');
     }
 
-    /**
-     * Relasi ke data Master Village (Desa) berdasarkan zone_id.
-     */
     public function village(): BelongsTo
     {
         return $this->belongsTo(Village::class, 'zone_id', 'id');

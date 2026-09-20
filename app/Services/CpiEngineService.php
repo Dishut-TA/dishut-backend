@@ -115,17 +115,19 @@ class CpiEngineService
             if ($response->failed()) {
                 $errorBody = $response->json() ?? $response->body();
                 $detail = is_array($errorBody) ? ($errorBody['detail'] ?? $errorBody) : $errorBody;
-                $errorMsg = is_array($detail) ? json_encode($detail) : $detail;
+                $errorMsg = is_array($detail)
+                    ? ($detail['message'] ?? json_encode($detail, JSON_UNESCAPED_UNICODE))
+                    : (string) $detail;
 
                 Log::error('[CpiEngineService] Python mengembalikan error HTTP', [
                     'status'     => $response->status(),
                     'project_id' => $projectId,
-                    'error'      => $errorMsg,
+                    'error'      => $detail,
                 ]);
 
-                throw new Exception(
-                    "Python CPI Engine mengembalikan error HTTP {$response->status()}: {$errorMsg}"
-                );
+                // HTTP status Python diteruskan sebagai exception code agar controller
+                // dapat mengembalikan 422 untuk kegagalan validasi spasial, bukan 500.
+                throw new Exception($errorMsg, $response->status());
             }
 
             $result = $response->json();

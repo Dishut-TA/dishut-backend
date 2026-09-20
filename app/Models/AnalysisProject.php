@@ -4,13 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AnalysisProject extends Model
 {
-    /**
-     * Status konstanta untuk memudahkan penggunaan di seluruh codebase.
-     */
     const STATUS_UPLOADED   = 'uploaded';
     const STATUS_PROCESSING = 'processing';
     const STATUS_COMPLETED  = 'completed';
@@ -31,41 +29,36 @@ class AnalysisProject extends Model
         'error_message',
     ];
 
-    /**
-     * Relasi ke user yang membuat project.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /**
-     * Relasi ke hasil analisis CPI (one-to-one).
+     * Hasil analisis aktif adalah revisi terbaru.
+     * Re-analysis membuat row AnalysisResult baru agar zona/result lama yang sudah
+     * direferensikan validasi lapangan atau program rehabilitasi tidak terhapus.
      */
     public function result(): HasOne
     {
-        return $this->hasOne(AnalysisResult::class, 'project_id');
+        return $this->hasOne(AnalysisResult::class, 'project_id')->latestOfMany();
     }
 
-    /**
-     * Cek apakah project sudah selesai diproses.
-     */
+    public function results(): HasMany
+    {
+        return $this->hasMany(AnalysisResult::class, 'project_id')->latest();
+    }
+
     public function isCompleted(): bool
     {
         return $this->status === self::STATUS_COMPLETED;
     }
 
-    /**
-     * Cek apakah project sedang diproses.
-     */
     public function isProcessing(): bool
     {
         return $this->status === self::STATUS_PROCESSING;
     }
 
-    /**
-     * Cek apakah project gagal diproses.
-     */
     public function isFailed(): bool
     {
         return $this->status === self::STATUS_FAILED;

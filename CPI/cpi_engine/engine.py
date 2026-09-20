@@ -67,6 +67,15 @@ class CPIAHPEngine:
         dem = mask_array_by_aoi(dem, ref, aoi)
         slope_percent, slope_score = score_slope_from_dem(dem, ref, self.cfg["rules"]["slope"])
 
+        # Parameter mentah untuk rule rekomendasi tanaman. Elevasi selalu tersedia
+        # dari DEM. Curah hujan hanya dipakai sebagai mm/tahun bila config memang
+        # menyatakan input rainfall sebagai threshold_mm, bukan raster skor 1..5.
+        raw_parameters: Dict[str, np.ndarray] = {"elevation": dem}
+        rainfall_rule = self.cfg.get("rules", {}).get("rainfall", {})
+        if rainfall_rule.get("mode") == "threshold_mm":
+            rainfall_mm = read_raster_to_reference(rainfall_path, ref, resampling=Resampling.bilinear)
+            raw_parameters["rainfall_mm"] = mask_array_by_aoi(rainfall_mm, ref, aoi)
+
         # 3. Other indicator scores.
         indicator_paths: Dict[str, str | Path | None] = {
             "landcover": landcover_path,
@@ -149,6 +158,7 @@ class CPIAHPEngine:
                 fallback_crs=fallback_crs,
                 indicator_scores=indicator_scores,
                 slope_percent=slope_percent,
+                raw_parameters=raw_parameters,
             )
             if not zonal_gdf.empty:
                 map_gdf = zonal_gdf
@@ -171,6 +181,7 @@ class CPIAHPEngine:
                     fallback_crs=fallback_crs,
                     indicator_scores=indicator_scores,
                     slope_percent=slope_percent,
+                    raw_parameters=raw_parameters,
                 )
         else:
             class_gdf = polygonize_classes(
@@ -190,6 +201,7 @@ class CPIAHPEngine:
                 fallback_crs=fallback_crs,
                 indicator_scores=indicator_scores,
                 slope_percent=slope_percent,
+                raw_parameters=raw_parameters,
             )
 
         summary_df = apply_intervention_rules(summary_df, self.cfg)

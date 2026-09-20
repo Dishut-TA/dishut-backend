@@ -163,6 +163,7 @@ def _add_indicator_means(
     ref: RasterReference,
     indicator_scores: Mapping[str, np.ndarray] | None,
     slope_percent: np.ndarray | None,
+    raw_parameters: Mapping[str, np.ndarray] | None = None,
 ) -> gpd.GeoDataFrame:
     gdf = gdf.copy()
     if slope_percent is not None:
@@ -170,6 +171,9 @@ def _add_indicator_means(
     if indicator_scores:
         for name, arr in indicator_scores.items():
             gdf[f"score_{name}_rata2"] = _zonal_mean_from_raster(gdf, arr, ref)
+    if raw_parameters:
+        for name, arr in raw_parameters.items():
+            gdf[f"{name}_rata2"] = _zonal_mean_from_raster(gdf, arr, ref)
     return gdf
 
 
@@ -228,6 +232,7 @@ def build_admin_zonal_gdf(
     fallback_crs: str | None = None,
     indicator_scores: Mapping[str, np.ndarray] | None = None,
     slope_percent: np.ndarray | None = None,
+    raw_parameters: Mapping[str, np.ndarray] | None = None,
 ) -> gpd.GeoDataFrame:
     """Build a fast zonal map from administrative polygons.
 
@@ -299,6 +304,11 @@ def build_admin_zonal_gdf(
             means, _ = _aggregate_by_zone(zone_arr, arr, ref, zone_count)
             out[f"score_{name}_rata2"] = means[active_indices]
 
+    if raw_parameters:
+        for name, arr in raw_parameters.items():
+            means, _ = _aggregate_by_zone(zone_arr, arr, ref, zone_count)
+            out[f"{name}_rata2"] = means[active_indices]
+
     out["skor_cpi_rata2"] = _safe_round_series(out["skor_cpi_rata2"], 2)
 
     # Area reflects valid raster cells inside the AOI, not the full admin polygon.
@@ -330,7 +340,11 @@ def build_admin_zonal_gdf(
         "class_id", "status", "status_lahan_kritis", "color", "skor_cpi_rata2", "luas_ha",
         "alasan_skor", "rekomendasi_intervensi",
     ]
-    extra_cols = [c for c in out.columns if (c.startswith("score_") and c.endswith("_rata2")) or c == "slope_percent_rata2"]
+    extra_cols = [
+        c for c in out.columns
+        if (c.startswith("score_") and c.endswith("_rata2"))
+        or c in {"slope_percent_rata2", "elevation_rata2", "rainfall_mm_rata2"}
+    ]
     for col in extra_cols:
         out[col] = _safe_round_series(out[col], 2)
 
@@ -360,6 +374,7 @@ def build_summary_table(
     fallback_crs: str | None = None,
     indicator_scores: Mapping[str, np.ndarray] | None = None,
     slope_percent: np.ndarray | None = None,
+    raw_parameters: Mapping[str, np.ndarray] | None = None,
 ) -> pd.DataFrame:
     """Create dashboard table.
 
@@ -375,7 +390,7 @@ def build_summary_table(
     class_gdf = class_gdf.to_crs(ref.crs).copy()
     class_gdf["luas_ha"] = class_gdf.geometry.area / 10000.0
     class_gdf["skor_cpi_rata2"] = _zonal_mean_from_raster(class_gdf, cpi_arr, ref)
-    class_gdf = _add_indicator_means(class_gdf, ref, indicator_scores, slope_percent)
+    class_gdf = _add_indicator_means(class_gdf, ref, indicator_scores, slope_percent, raw_parameters)
 
     if admin_path:
         admin = read_vector(admin_path, fallback_crs=fallback_crs).to_crs(ref.crs)
@@ -391,7 +406,7 @@ def build_summary_table(
             ])
         overlay["luas_ha"] = overlay.geometry.area / 10000.0
         overlay["skor_cpi_rata2"] = _zonal_mean_from_raster(overlay, cpi_arr, ref)
-        overlay = _add_indicator_means(overlay, ref, indicator_scores, slope_percent)
+        overlay = _add_indicator_means(overlay, ref, indicator_scores, slope_percent, raw_parameters)
 
         logical_to_output = {
             "zone_id": "zone_id",
@@ -414,6 +429,9 @@ def build_summary_table(
                 agg_spec[col] = (col, "mean")
         if "slope_percent_rata2" in overlay.columns:
             agg_spec["slope_percent_rata2"] = ("slope_percent_rata2", "mean")
+        for col in ["elevation_rata2", "rainfall_mm_rata2"]:
+            if col in overlay.columns:
+                agg_spec[col] = (col, "mean")
 
         df = overlay.groupby(group_cols, dropna=False).agg(**agg_spec).reset_index()
         df = df.rename(columns={"status": "status_lahan_kritis"})
@@ -432,6 +450,9 @@ def build_summary_table(
                 agg_spec[col] = (col, "mean")
         if "slope_percent_rata2" in tmp.columns:
             agg_spec["slope_percent_rata2"] = ("slope_percent_rata2", "mean")
+        for col in ["elevation_rata2", "rainfall_mm_rata2"]:
+            if col in tmp.columns:
+                agg_spec[col] = (col, "mean")
         df = tmp.groupby(group_cols, dropna=False).agg(**agg_spec).reset_index()
         df = df.rename(columns={"status": "status_lahan_kritis"})
 
