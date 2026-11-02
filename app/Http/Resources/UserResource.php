@@ -21,7 +21,7 @@ class UserResource extends JsonResource
             'nip' => $this->pegawai?->nip,
             'profil' => new PegawaiResource($this->whenLoaded('pegawai')),
             'kth_id' => $this->kth_id,
-            'kth' => $this->whenLoaded('kth'),
+            'kth' => $this->whenLoaded('kth', fn() => new KthResource($this->kth)),
             'peran' => RoleResource::collection($this->whenLoaded('roles')),
             'izin' => PermissionResource::collection($this->whenLoaded('permissions')),
             'dibuat_pada' => $this->created_at,

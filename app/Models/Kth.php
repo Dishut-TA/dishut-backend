@@ -8,13 +8,21 @@ class Kth extends Model
 {
     protected $fillable = [
         'cdk',
-        'no_rekening',
         'kabupaten_kota',
         'kecamatan',
         'desa_kelurahan',
+        'nomor_sk',
         'nama',
         'ketua',
+        'no_wa_ketua',
+        'jumlah_anggota',
         'jenis_usaha',
+        'kelas_kth',
+        'alamat_sekretariat',
+        'nama_bank',
+        'no_rekening',
+        'nama_pemilik_rekening',
+        'foto_profil',
     ];
 
     public function donationPrograms()
