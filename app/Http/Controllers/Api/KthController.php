@@ -9,6 +9,7 @@ use App\Http\Resources\KthResource;
 use App\Imports\KthImport;
 use Maatwebsite\Excel\Facades\Excel; 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class KthController extends Controller
 {
@@ -71,31 +72,70 @@ class KthController extends Controller
         return response()->json(['message' => 'Data KTH berhasil dihapus']);
     }
 
-    // --- METHOD BARU UNTUK UPLOAD EXCEL ---
+    // --- METHOD UNTUK UPLOAD EXCEL / CSV KTH ---
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv|max:2048'
+            'file' => 'required|file|max:20480|mimes:xlsx,xls,csv,txt'
+        ], [
+            'file.required' => 'Pilih file Excel/CSV terlebih dahulu!',
+            'file.mimes'    => 'Format file harus berupa Excel (.xlsx, .xls) atau CSV (.csv)!',
+            'file.max'      => 'Ukuran file maksimal 20MB!'
         ]);
+
+        $file = $request->file('file');
 
         try {
             DB::beginTransaction();
             
-            // Proses import data menggunakan class KthImport
-            Excel::import(new KthImport, $request->file('file'));
+            // Deteksi otomatis delimiter jika file adalah CSV
+            $delimiter = ',';
+            $ext = strtolower($file->getClientOriginalExtension());
+            if ($ext === 'csv' || str_contains($file->getMimeType(), 'csv')) {
+                $handle = fopen($file->getRealPath(), 'r');
+                if ($handle) {
+                    $firstLine = fgets($handle);
+                    fclose($handle);
+                    if ($firstLine !== false && substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
+                        $delimiter = ';';
+                    }
+                }
+            }
+
+            $import = new KthImport($delimiter);
+
+            if ($ext === 'csv') {
+                Excel::import($import, $file, null, \Maatwebsite\Excel\Excel::CSV);
+            } else {
+                Excel::import($import, $file);
+            }
             
             DB::commit();
 
             return response()->json([
-                'message' => 'Data KTH dari Excel berhasil diimpor secara otomatis!'
+                'success' => true,
+                'message' => "Data KTH berhasil diimpor! Total {$import->importedCount} data kelompok berhasil ditambahkan.",
+                'total_imported' => $import->importedCount
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            $errors = $e->errors();
+            $firstMessage = collect($errors)->flatten()->first() ?? $e->getMessage();
+
+            return response()->json([
+                'success' => false,
+                'message' => $firstMessage,
+                'errors'  => $errors
+            ], 422);
+
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Gagal mengimpor data. Pastikan format template Excel benar.',
-                'error' => $e->getMessage()
-            ], 500);
+                'success' => false,
+                'message' => 'Gagal mengimpor data: ' . $e->getMessage(),
+                'error'   => $e->getMessage()
+            ], 422);
         }
     }
 }
