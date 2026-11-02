@@ -276,6 +276,13 @@ Route::prefix('pegawais')->group(function () {
 
 Route::middleware('auth:sanctum')->get('/dashboard-csr', [\App\Http\Controllers\Api\CsrDashboardController::class, 'index']);
 
-
 Route::middleware('auth:sanctum')->get('/dashboard-kth', [\App\Http\Controllers\Api\KthDashboardController::class, 'index']);
+
+// Profil KTH (Self-service profile untuk pengguna role KTH)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/kth/profile', [\App\Http\Controllers\Api\KthProfileController::class, 'show']);
+    Route::put('/kth/profile', [\App\Http\Controllers\Api\KthProfileController::class, 'update']);
+    Route::post('/kth/profile', [\App\Http\Controllers\Api\KthProfileController::class, 'update']); // Mendukung FormData
+});
+
 

@@ -54,6 +54,28 @@ class User extends Authenticatable
         return $this->belongsTo(Kth::class, 'kth_id');
     }
 
+    public function getOrCreateKth()
+    {
+        if (!$this->kth) {
+            if ($this->kth_id) {
+                $kth = Kth::find($this->kth_id);
+                if ($kth) {
+                    $this->load('kth');
+                    return $kth;
+                }
+            }
+
+            $kth = Kth::create([
+                'nama' => $this->username,
+                'cdk'  => 'CDK Wilayah VIII',
+            ]);
+            $this->kth_id = $kth->id;
+            $this->save();
+            $this->load('kth');
+        }
+        return $this->kth;
+    }
+
     public function csr()
     {
         return $this->hasOne(Csr::class);

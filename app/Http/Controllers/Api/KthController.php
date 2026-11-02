@@ -22,13 +22,21 @@ class KthController extends Controller
     {
         // Validasi input manual
         $validated = $request->validate([
-            'cdk' => 'required|string|max:255',
-            'kabupaten_kota' => 'required|string|max:255',
-            'kecamatan' => 'required|string|max:255',
-            'desa_kelurahan' => 'required|string|max:255',
-            'nama' => 'required|string|max:255',
-            'ketua' => 'required|string|max:255',
-            'jenis_usaha' => 'required|string|max:255',
+            'cdk'                   => 'required|string|max:255',
+            'kabupaten_kota'        => 'required|string|max:255',
+            'kecamatan'             => 'required|string|max:255',
+            'desa_kelurahan'        => 'required|string|max:255',
+            'nama'                  => 'required|string|max:255',
+            'ketua'                 => 'required|string|max:255',
+            'jenis_usaha'           => 'required|string|max:255',
+            'nomor_sk'              => 'nullable|string|max:255',
+            'no_wa_ketua'           => 'nullable|string|max:30',
+            'jumlah_anggota'        => 'nullable|string|max:50',
+            'kelas_kth'             => 'nullable|string|max:100',
+            'alamat_sekretariat'    => 'nullable|string',
+            'nama_bank'             => 'nullable|string|max:100',
+            'no_rekening'           => 'nullable|string|max:50',
+            'nama_pemilik_rekening' => 'nullable|string|max:255',
         ]);
 
         $item = Kth::create($validated);
@@ -49,13 +57,21 @@ class KthController extends Controller
     public function update(Request $request, string $id)
     {
         $validated = $request->validate([
-            'cdk' => 'sometimes|required|string|max:255',
-            'kabupaten_kota' => 'sometimes|required|string|max:255',
-            'kecamatan' => 'sometimes|required|string|max:255',
-            'desa_kelurahan' => 'sometimes|required|string|max:255',
-            'nama' => 'sometimes|required|string|max:255',
-            'ketua' => 'sometimes|required|string|max:255',
-            'jenis_usaha' => 'sometimes|required|string|max:255',
+            'cdk'                   => 'sometimes|required|string|max:255',
+            'kabupaten_kota'        => 'sometimes|required|string|max:255',
+            'kecamatan'             => 'sometimes|required|string|max:255',
+            'desa_kelurahan'        => 'sometimes|required|string|max:255',
+            'nama'                  => 'sometimes|required|string|max:255',
+            'ketua'                 => 'sometimes|required|string|max:255',
+            'jenis_usaha'           => 'sometimes|required|string|max:255',
+            'nomor_sk'              => 'nullable|string|max:255',
+            'no_wa_ketua'           => 'nullable|string|max:30',
+            'jumlah_anggota'        => 'nullable|string|max:50',
+            'kelas_kth'             => 'nullable|string|max:100',
+            'alamat_sekretariat'    => 'nullable|string',
+            'nama_bank'             => 'nullable|string|max:100',
+            'no_rekening'           => 'nullable|string|max:50',
+            'nama_pemilik_rekening' => 'nullable|string|max:255',
         ]);
 
         $item = Kth::findOrFail($id);
